@@ -120,3 +120,81 @@ def test_summarize_across_seeds():
     assert s.loc["a", "ap_std"] == pytest.approx(0.1)
     assert s.loc["a", "ap_ci_low"] < 0.6 < s.loc["a", "ap_ci_high"]
     assert s.loc["b", "ap_n"] == 3
+
+
+# --------------------------------------------------------------------------- statistical reporting
+def _pairs_df():
+    return pd.DataFrame({
+        "scenario": ["s"] * 6, "seed": [1, 2, 3] * 2, "system": ["a"] * 3 + ["b"] * 3,
+        "ap": [0.8, 0.7, 0.9, 0.6, 0.7, 0.5],
+        "partition_sha256": ["p1", "p2", "p3"] * 2})
+
+
+def test_paired_differences_are_a_minus_b_matched_by_seed():
+    from heterofl.evaluation.statistics import paired_seed_differences
+
+    df = _pairs_df().sample(frac=1, random_state=0)            # row order must not matter
+    r = paired_seed_differences(df, "a", "b", "ap", ["scenario"], system_col="system").iloc[0]
+    assert r["n_pairs"] == 3 and r["n_a_better"] == 2
+    assert r["mean_diff"] == pytest.approx(np.mean([0.2, 0.0, 0.4]))
+    assert r["min_diff"] == pytest.approx(0.0) and r["max_diff"] == pytest.approx(0.4)
+
+
+def test_paired_differences_refuse_ambiguous_or_mismatched_pairs():
+    from heterofl.evaluation.statistics import PairingError, paired_seed_differences
+
+    df = _pairs_df()
+    dup = pd.concat([df, df.iloc[[0]]])
+    with pytest.raises(PairingError, match="several rows"):
+        paired_seed_differences(dup, "a", "b", "ap", ["scenario"], system_col="system")
+    other = df.copy()
+    other.loc[3, "partition_sha256"] = "elsewhere"           # b, seed 1, other partition
+    with pytest.raises(PairingError, match="different partitions"):
+        paired_seed_differences(other, "a", "b", "ap", ["scenario"], system_col="system")
+
+
+def test_missing_runs_are_dropped_not_counted_as_zero():
+    from heterofl.evaluation.statistics import paired_seed_differences
+
+    df = _pairs_df()
+    df = df[~((df["system"] == "b") & (df["seed"] == 3))]    # b failed for seed 3
+    df.loc[df.index[0], "ap"] = np.nan                         # a, seed 1: undefined metric
+    r = paired_seed_differences(df, "a", "b", "ap", ["scenario"], system_col="system").iloc[0]
+    assert r["n_pairs"] == 1 and r["mean_diff"] == pytest.approx(0.0)
+    s = summarize_across_seeds(_pairs_df().assign(ap=[0.8, np.nan, 0.9, 0.6, 0.7, 0.5]),
+                               ["system"], ["ap"]).set_index("system")
+    assert s.loc["a", "ap_n"] == 2 and s.loc["a", "ap_mean"] == pytest.approx(0.85)
+
+
+def test_bootstrap_is_reproducible_and_seed_dependent(yp):
+    y, p = yp
+    assert bootstrap_ap_ci(y, p, 100, seed=5) == bootstrap_ap_ci(y, p, 100, seed=5)
+    assert bootstrap_ap_ci(y, p, 100, seed=5)["ci_low"] != bootstrap_ap_ci(y, p, 100, seed=6)["ci_low"]
+    # paired: both systems see the same resamples, so a - b == -(b - a) exactly
+    q = np.clip(p + 0.05, 0, 1)[::-1]
+    ab, ba = paired_bootstrap_ap_diff(y, p, q, 100, seed=2), paired_bootstrap_ap_diff(y, q, p, 100, seed=2)
+    assert ab["diff"] == pytest.approx(-ba["diff"])
+    assert ab["ci_low"] == pytest.approx(-ba["ci_high"])
+
+
+def test_ap_is_not_trapezoidal_pr_auc(yp):
+    y, p = yp
+    assert average_precision(y, p) != pytest.approx(pr_auc_trapezoid(y, p), abs=1e-6)
+
+
+def test_report_provenance_flags_legacy_and_dirty_runs(tmp_path):
+    from heterofl.evaluation.report import provenance_summary
+
+    row = {"status": "completed", "legacy_no_identity": False, "source_commit": "abc",
+           "source_dirty": False, "source_diff_sha256": None, "source_verified": True}
+    clean = pd.DataFrame([row, row])
+    assert provenance_summary(tmp_path, clean)["verified"] is False          # no experiment.json
+    (tmp_path / "experiment.json").write_text('{"experiment_hash": "e", "config_hash": "c"}')
+    assert provenance_summary(tmp_path, clean)["verified"] is True
+    dirty = pd.DataFrame([row, {**row, "source_dirty": True, "source_diff_sha256": "d",
+                                "source_verified": False}])
+    prov = provenance_summary(tmp_path, dirty)
+    assert not prov["verified"] and any("clean git commit" in m for m in prov["problems"])
+    assert any("2 different source revisions" in m for m in prov["problems"])
+    legacy = pd.DataFrame([{**row, "legacy_no_identity": True, "source_verified": False}])
+    assert any("without a recorded" in m for m in provenance_summary(tmp_path, legacy)["problems"])

@@ -23,12 +23,14 @@ from heterofl.federation.heterogeneous_strategy import HeterogeneousKDStrategy, 
 from heterofl.federation.job import load_job
 from heterofl.utils.io import write_json
 from heterofl.utils.logging import FileLog, get_logger, setup_logging
+from heterofl.utils.reproducibility import configure_torch_threads
 
 log = get_logger("federation.server")
 
 
 def run_job(grid: Grid, job_path: str) -> dict:
     job = load_job(str(job_path))
+    configure_torch_threads(job.torch_threads)
     server_dir = Path(job.job_dir) / "server"
     server_dir.mkdir(parents=True, exist_ok=True)
     status_path = server_dir / "status.json"

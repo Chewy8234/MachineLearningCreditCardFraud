@@ -26,8 +26,19 @@ def model_seed(run_seed: int, role: str, model_type: str) -> int:
     return derive_seed(run_seed, "model", role, model_type)
 
 
+def validate_model_params(model_type: str, params: dict) -> None:
+    """Raise ``ValueError`` for an unknown model type or invalid hyperparameters."""
+    if model_type not in MODEL_CLASSES:
+        raise ValueError(f"Unknown model type {model_type!r}; valid: {sorted(MODEL_CLASSES)}")
+    MODEL_CLASSES[model_type].validate_params(params)
+
+
 def create_model(model_type: str, models_cfg: dict, seed: int, n_jobs: int = 1,
                  n_features: int = 30) -> FraudModel:
+    if model_type not in MODEL_CLASSES:
+        raise ValueError(f"Unknown model type {model_type!r}; valid: {sorted(MODEL_CLASSES)}")
+    if model_type not in models_cfg:
+        raise ValueError(f"No hyperparameters configured for model type {model_type!r}")
     params = models_cfg[model_type]
     if model_type == "mlp":
         return MLPModel(params, seed, n_features=n_features, n_jobs=n_jobs)
@@ -38,7 +49,12 @@ def create_model(model_type: str, models_cfg: dict, seed: int, n_jobs: int = 1,
 
 def load_model(model_type: str, path: Path, models_cfg: dict, seed: int,
                n_jobs: int = 1) -> FraudModel:
+    """Load a trusted, self-written checkpoint (see docs/reproducibility.md)."""
+    if model_type not in MODEL_CLASSES:
+        raise ValueError(f"Unknown model type {model_type!r}; valid: {sorted(MODEL_CLASSES)}")
     cls = MODEL_CLASSES[model_type]
+    if Path(path).suffix != cls.file_suffix:
+        raise ValueError(f"{path}: expected a {cls.file_suffix} checkpoint for {model_type}")
     return cls.load(Path(path), models_cfg.get(model_type, {}), seed, n_jobs)
 
 

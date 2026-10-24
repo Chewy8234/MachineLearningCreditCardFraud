@@ -1,6 +1,8 @@
 # Running the experiments on NRP (Nautilus), CPU only
 
-Status: **drafted, not yet run on the cluster.** Nothing here has been built, deployed or measured;
+Status: **drafted, not yet run on the cluster.** The Docker image has never been built and no manifest
+has ever been applied (also not during the 2026-10-24 reproducibility repair, which only added the
+placeholder check below and identity checks to `merge_units.py`). Nothing here has been built, deployed or measured;
 every number marked *provisional* must be replaced by a measurement. Rules below are taken from the
 NRP docs (fetched 2026-10-24: *CPU-only jobs*, *Jobs tutorial*, *Cluster policies*, *Ceph storage*,
 *Getting started*, *Building in GitLab*). Re-check them; policies change.
@@ -42,7 +44,7 @@ round-0 diagnostic exactly as in the laptop run.
 | run directories | already unique per (seed, scenario, method/ablation) |
 | duplicate execution of an index | Indexed Job guarantees one pod per index at a time; resume skips `completed` runs and archives interrupted ones |
 
-No file under `src/` is modified. Rebuilding the cache per pod must be **checked**: compare
+No file under `src/` is modified by the deployment. Rebuilding the cache per pod must be **checked**: compare
 `proxy_row_id_sha256` / split hashes in `split_manifest.json` and `partition_manifest.json` with the laptop's.
 
 ## Resource sizing (provisional)
@@ -131,21 +133,25 @@ kubectl exec heterofl-loader -- sha256sum /store/raw/creditcard.csv   # must mat
 ```
 Keep the loader pod only while copying: `kubectl delete pod heterofl-loader`.
 
-**7. Validate ONE unit (original setting).**
+**7. Validate ONE unit (original setting).** The manifests are templates; fill in the image reference
+(`REPLACE_GROUP/REPLACE_PROJECT:REPLACE_TAG`, twice per file) and let the checker confirm nothing is left:
 ```bash
-kubectl apply -f deploy/k8s/job-validate.yaml
+python deploy/check_manifests.py deploy/k8s/job-validate.yaml && kubectl apply -f deploy/k8s/job-validate.yaml
 kubectl get pods -w                       # Pending -> Running -> Completed
 kubectl logs -f job/heterofl-validate
 ```
 Then fetch and compare (step 10) against `results/full` seed 42 / iid. Proceed only if differences are
-negligible relative to the bootstrap CIs and the manifests' hashes match.
+negligible relative to the bootstrap CIs and the manifests' hashes match. Note that `results/full` is a
+*legacy* result set whose source revision cannot be verified (docs/reproducibility.md); a laptop
+re-run from a clean commit (`--set results_dir=results/full_v2`) is the better reference.
+`run_unit.py` also refuses to start if `IMAGE_REF` still contains a placeholder.
 
 **8. Benchmark thread counts (before scaling).** Locally, on an idle machine (or in a pod): see *Benchmarking*.
 
 **9. Run the full set.** Edit `RUN_TAG`, `CLIENT_NUM_CPUS`, resources and `parallelism` in `job-indexed.yaml`,
 then start with a small `parallelism` (2–4):
 ```bash
-kubectl apply -f deploy/k8s/job-indexed.yaml
+python deploy/check_manifests.py deploy/k8s/job-indexed.yaml && kubectl apply -f deploy/k8s/job-indexed.yaml
 kubectl get job heterofl-paper-cpu12 ; kubectl get pods -l job-name=heterofl-paper-cpu12
 kubectl top pod                           # CPU/RAM actually used vs requested (NRP checks this)
 kubectl logs <pod-name> --tail=50 ; kubectl describe pod <pod-name>

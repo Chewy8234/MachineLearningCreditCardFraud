@@ -41,6 +41,12 @@ def test_smoke_profile_runs_all_conditions_and_reports(tmp_path, synthetic_csv):
         assert m["publishable"] is False
         man = read_json(d / "manifest.json")
         assert man["synthetic_data"] is True
+        # provenance: identity + source + dataset recorded with every run
+        ident = read_json(d / "run_identity.json")
+        assert ident["run_hash"] == read_json(d / "status.json")["run_hash"]
+        assert man["provenance"]["run_hash"] == ident["run_hash"]
+        assert man["provenance"]["publication_reproducible"] is False
+        assert ident["identity"]["method"] == method and ident["identity"]["seed"] == 42
         # every condition used the very same partitions
         assert man["partition_manifest"]["sets"] == read_json(
             sdir / "local" / "manifest.json")["partition_manifest"]["sets"]
@@ -49,7 +55,21 @@ def test_smoke_profile_runs_all_conditions_and_reports(tmp_path, synthetic_csv):
     for ab in ("kd_lambda_0.0", "kd_full_committee", "kd_teacher_val_weighted", "ensemble_val_weighted"):
         assert read_json(sdir / "ablations" / ab / "status.json")["status"] == "completed", ab
 
+    exp = read_json(res / "experiment.json")
+    hashes = {read_json(sdir / m / "run_identity.json")["config_hash"]
+              for m in ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd")}
+    assert hashes == {exp["config_hash"]}   # primary runs share the experiment's config
+    lam0 = read_json(sdir / "ablations" / "kd_lambda_0.0" / "run_identity.json")
+    assert lam0["config_hash"] != exp["config_hash"]
+    assert lam0["identity"]["config"]["kd"]["lambda_kd"] == 0.0
+    # RF distillation records its effective bootstrap composition every round
+    meta = read_json(sdir / "heterogeneous_kd" / "federation" / "clients" / "bank_B" /
+                     "round_01" / "meta.json")
+    assert meta["fit_info"]["rf_expected_proxy_draws"] > 0
+    assert meta["fit_info"]["rf_bootstrap_draws_per_tree"] > meta["fit_info"]["n_local"]
+
     metrics = pd.concat(pd.read_csv(p) for p in sdir.glob("*/metrics.csv"))
+    assert metrics["partition_sha256"].nunique() == 1
     assert {"bank_A", "bank_B", "bank_C", "centralized_xgboost", "ensemble_equal", "fedavg_global",
             "kd_bank_A", "kd_committee"} <= set(metrics["system"])
     assert metrics["test_average_precision"].between(0, 1).all()
@@ -66,7 +86,7 @@ def test_smoke_profile_runs_all_conditions_and_reports(tmp_path, synthetic_csv):
 
     # resume: a second invocation skips everything that already completed
     assert main(_args(tmp_path, synthetic_csv) + ["--no-report"]) == 0
-    status = pd.read_csv(sorted(res.glob("outcomes_*.csv"))[-1])
+    status = pd.read_csv(max(res.glob("outcomes_*.csv"), key=lambda f: f.stat().st_mtime_ns))
     assert (status["status"] == "skipped-completed").all()
 
 

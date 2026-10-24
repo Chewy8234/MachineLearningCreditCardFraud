@@ -19,3 +19,17 @@ results/*
 build/
 dist/
 *.fab
+
+# Secrets and cluster credentials (never commit)
+.env
+.env.*
+*.kubeconfig
+kubeconfig*
+.kube/
+
+# Model checkpoints outside results/ (results/ is ignored above)
+*.pt
+*.joblib
+
+# OS / editor noise
+.DS_Store

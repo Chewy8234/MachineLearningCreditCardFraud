@@ -163,3 +163,139 @@ def test_round_failure_is_detected(prepared, tmp_path):
     status = read_json(ctx.out_dir / "federation" / "server" / "status.json")
     assert status["status"] == "failed"
     assert "bank B failed" in status["error"]
+
+
+# --------------------------------------------------------------------------- identification
+def _job(tmp_path, n_clients=3):
+    from heterofl.federation.job import ClientSpec, FederatedJob
+
+    job = FederatedJob(mode="kd", job_dir=str(tmp_path), view_dir=str(tmp_path), seed=1,
+                       num_rounds=1, models={"mlp": {"torch_threads": 1}}, fedavg={}, kd={},
+                       expected_proxy_sha256="x",
+                       clients=[ClientSpec(i, b, m) for i, (b, m) in enumerate(
+                           [("A", "xgboost"), ("B", "random_forest"), ("C", "mlp")][:n_clients])],
+                       node_wait_timeout=1.0, round_timeout=1.0)
+    job.save()
+    return job
+
+
+class _Reply:
+    def __init__(self, node, info=None, error=None):
+        from types import SimpleNamespace
+
+        self.metadata = SimpleNamespace(src_node_id=node)
+        self.content = {M.INFO: info} if info is not None else {}
+        self.error = error
+
+    def has_error(self):
+        return self.error is not None
+
+
+@pytest.fixture()
+def stub_message(monkeypatch):
+    """flwr.app.Message needs a live Flower run context; the strategy only sends it."""
+    import heterofl.federation.heterogeneous_strategy as strategy
+
+    monkeypatch.setattr(strategy, "Message", lambda **kw: kw)
+
+
+class _Grid:
+    def __init__(self, replies):
+        self.replies = replies
+
+    def get_node_ids(self):
+        return [r.metadata.src_node_id for r in self.replies]
+
+    def send_and_receive(self, msgs, timeout=None):
+        assert len(msgs) == len(self.replies)
+        return self.replies
+
+
+def _info(job, pid, node):
+    from heterofl.federation.client_app import identify_info
+
+    return identify_info(job, pid, node)
+
+
+def test_identify_reply_marks_unassigned_nodes(tmp_path):
+    job = _job(tmp_path)
+    assert _info(job, 1, 11) == {"assigned": True, "partition-id": 1, "bank": "B",
+                                 "model-type": "random_forest", "mode": "kd", "node-id": 11}
+    assert _info(job, 7, 17) == {"assigned": False, "partition-id": 7, "mode": "kd",
+                                 "node-id": 17}
+
+
+def test_identify_clients_ignores_only_explicitly_unassigned_nodes(tmp_path, stub_message):
+    from heterofl.federation.heterogeneous_strategy import identify_clients
+
+    job = _job(tmp_path)
+    replies = [_Reply(10 + p, _info(job, p, 10 + p)) for p in range(4)]   # node 13: no bank
+    mapping = identify_clients(_Grid(replies), job)
+    assert {n: s.bank for n, s in mapping.items()} == {10: "A", 11: "B", 12: "C"}
+
+
+def test_identify_errors_are_never_swallowed(tmp_path, stub_message):
+    """The old code skipped any error whose text contained 'No client is assigned'."""
+    from types import SimpleNamespace
+
+    from heterofl.federation.heterogeneous_strategy import identify_clients
+    from heterofl.federation.job import FederationError
+
+    job = _job(tmp_path)
+    good = [_Reply(10 + p, _info(job, p, 10 + p)) for p in range(3)]
+    err = SimpleNamespace(code=2, reason="FederationError: No client is assigned to partition-id 3")
+    with pytest.raises(FederationError, match="identify failed on node 13"):
+        identify_clients(_Grid([*good, _Reply(13, error=err)]), job)
+    legacy = {k: v for k, v in _info(job, 0, 10).items() if k != "assigned"}
+    with pytest.raises(FederationError, match="no 'assigned' field"):
+        identify_clients(_Grid([_Reply(10, legacy), *good[1:]]), job)
+    with pytest.raises(FederationError, match="Two nodes claim bank A"):
+        identify_clients(_Grid([*good, _Reply(19, _info(job, 0, 19))]), job)
+    lying = {**_info(job, 9, 10), "partition-id": 0}
+    with pytest.raises(FederationError, match="unassigned, but the job assigns it"):
+        identify_clients(_Grid([_Reply(10, lying), *good[1:]]), job)
+    with pytest.raises(FederationError, match="Identified banks"):
+        identify_clients(_Grid(good[:2] + [_Reply(13, _info(job, 5, 13))]), job)
+
+
+# --------------------------------------------------------------------------- trusted paths
+def test_job_path_is_validated(tmp_path, monkeypatch):
+    from heterofl.federation.job import FederationError, check_job_path
+
+    job = _job(tmp_path)
+    assert check_job_path(str(job.path)) == job.path.resolve()
+    with pytest.raises(FederationError, match="absolute"):
+        check_job_path("relative/job.json")
+    with pytest.raises(FederationError, match="absolute"):
+        check_job_path(str(tmp_path / "other.json"))
+    with pytest.raises(FederationError, match="does not exist"):
+        check_job_path(str(tmp_path / "missing" / "job.json"))
+    monkeypatch.setenv("HETEROFL_JOB_ROOT", str(tmp_path / "elsewhere"))
+    with pytest.raises(FederationError, match="outside HETEROFL_JOB_ROOT"):
+        check_job_path(str(job.path))
+
+
+def test_client_state_refuses_checkpoints_outside_its_directory(tmp_path, toy_xy):
+    X, y = toy_xy
+    m = create_model("xgboost", MODELS, 1)
+    m.fit(X, y)
+    foreign = m.save(tmp_path / "elsewhere" / "model")
+    ctx = _ctx()
+    ClientStateStore.record(ctx, bank="A", rnd=0, path=foreign,
+                            digest=__import__("heterofl.utils.reproducibility",
+                                              fromlist=["x"]).sha256_file(foreign),
+                            model_type="xgboost")
+    with pytest.raises(ClientStateError, match="outside this bank's state directory"):
+        ClientStateStore(tmp_path / "job", "A").load_previous(
+            ctx, expected_round=0, model_type="xgboost", models_cfg=MODELS, seed=1, n_jobs=1)
+
+
+@pytest.mark.slow
+def test_kd_simulation_with_an_extra_unassigned_node(prepared, tmp_path):
+    ctx = _run_ctx(prepared, tmp_path, "heterogeneous_kd")
+    job = build_job(ctx, "kd")
+    launch_subprocess(job.path, ctx.out_dir / "federation.log", timeout=600, num_supernodes=4)
+    status = read_json(ctx.out_dir / "federation" / "server" / "status.json")
+    assert status["status"] == "completed"
+    assert sorted(status["node_to_bank"].values()) == ["A", "B", "C"]
+    assert "Ignoring 1 node(s) without a bank" in (ctx.out_dir / "federation.log").read_text()

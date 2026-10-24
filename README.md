@@ -16,6 +16,7 @@ not assumed; negative results are reported as observed.
 * Architecture: [docs/architecture.md](docs/architecture.md)
 * Experiment protocol and output layout: [docs/experiment_protocol.md](docs/experiment_protocol.md)
 * Limitations: [docs/limitations.md](docs/limitations.md)
+* Reproducibility, provenance and safe resume: [docs/reproducibility.md](docs/reproducibility.md)
 
 ## Experimental conditions
 
@@ -36,12 +37,15 @@ proxy set (`configs/paper_random_proxy.yaml`).
 
 Tested with CPython 3.12.14 on macOS arm64 (12-core CPU, no GPU).
 Several pinned dependencies (xgboost 3.4.1, numpy 2.5.4, scipy 1.18.1)
-require Python ≥ 3.12.
+require Python ≥ 3.12. POSIX only (macOS/Linux): the federation launcher
+kills timed-out simulations by process group (`os.killpg`) and the results
+directory lock uses `fcntl`.
 
 ```bash
 uv venv --python 3.12 .venv            # or: python3.12 -m venv .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"              # or: pip install -e ".[dev]"
+# exact tested environment instead: uv pip install -r requirements-lock.txt && uv pip install -e . --no-deps
 ```
 
 `requirements.txt` pins the direct dependencies; `requirements-lock.txt`
@@ -67,24 +71,40 @@ pipeline testing: `python -m heterofl.data.synthetic` and
 ## Running
 
 ```bash
-pytest -q                                                        # 81 tests, ~2 min (incl. Flower simulations)
-pytest -q -m "not slow"                                          # 76 tests without Ray/Flower, ~5 s
+.venv/bin/python -m pytest -q                 # all tests incl. Flower/Ray simulations, ~2.5 min
+.venv/bin/python -m pytest -q -m "not slow"   # without Ray/Flower, ~15 s
+.venv/bin/python -m pytest -q -m slow         # only the Flower simulations + end-to-end runs
 
-python -m heterofl.experiments.runner --config configs/smoke.yaml   # PROFILE A, ~1 min
-python -m heterofl.experiments.runner --config configs/paper.yaml   # PROFILE B, ~75 min on 12 cores
-python scripts/generate_report.py --results results/full            # tables, figures, statistics
+# PROFILE A, smoke (~2 min). results/smoke holds legacy results, so use a new directory:
+.venv/bin/python -m heterofl.experiments.runner --config configs/smoke.yaml \
+    --set results_dir=results/smoke_v2
+# PROFILE B, full paper matrix (~75 min on 12 cores), from a clean commit:
+.venv/bin/python -m heterofl.experiments.runner --config configs/paper.yaml \
+    --require-clean-source --set results_dir=results/full_v2
+.venv/bin/python scripts/generate_report.py --results results/full_v2   # tables, figures, statistics
 ```
 
-or `scripts/run_smoke.sh` / `scripts/run_all.sh` (the latter also runs the
-random-proxy sensitivity profile and both reports).
+`scripts/run_smoke.sh` / `scripts/run_all.sh` wrap the same commands (the latter
+also runs the random-proxy sensitivity profile and both reports). Their default
+output directories hold legacy results, so set new ones:
+`SMOKE_RESULTS=results/smoke_v2 scripts/run_smoke.sh`,
+`FULL_RESULTS=results/full_v2 PROXY_RESULTS=results/full_random_proxy_v2 scripts/run_all.sh --require-clean-source`.
 
-* Completed runs are skipped on re-invocation (safe resume). Failed or
-  interrupted runs are archived to `_archive/` with their logs and re-run.
-  `--overwrite` re-runs completed runs (archiving, never deleting, the old
-  ones).
+* **Safe resume.** Re-running the same command skips completed runs, but only
+  after verifying that each run's recorded identity (complete effective
+  configuration, dataset SHA-256, library versions, partition, seed) and source
+  revision match. A changed configuration is refused (exit status 4, listing the
+  differing keys) instead of silently reusing or mixing results: use a new
+  `results_dir`. Failed or interrupted runs are archived to `_archive/` with
+  their logs and re-run. `--overwrite` re-runs completed runs (archiving, never
+  deleting, the old ones). See [docs/reproducibility.md](docs/reproducibility.md).
+* **Strict configuration.** Unknown keys (`--set kd.lamda_kd=1`,
+  `models.xgboost.n_estimator`) and out-of-range values are errors.
 * Subsets and overrides: `--seeds 42 --scenarios iid --methods local ensemble`,
-  `--set kd.lambda_kd=1.0`, `--no-ablations`, `--ablations-only`.
-* Smoke outputs carry a "DEVELOPMENT RESULTS – NOT FOR PUBLICATION" banner.
+  `--set kd.lambda_kd=1.0`, `--no-ablations`, `--ablations-only`,
+  `--allow-source-change`, `--require-clean-source`.
+* Smoke outputs carry a "NOT FOR PUBLICATION" banner, and so does any result
+  produced from an uncommitted working tree.
 
 ### Debugging with Flower directly
 
@@ -132,19 +152,34 @@ src/heterofl/
   experiments/   local, centralized, homogeneous (FedAvg), ensemble, heterogeneous (KD),
                  federated_common, common, runner
   evaluation/    metrics, statistics, visualization, latex_tables, report
-  utils/         config, logging, io, reproducibility
-scripts/      run_smoke.sh run_all.sh generate_report.py flwr_debug.sh
-tests/        test_data test_partitioning test_leakage test_models test_soft_targets
-              test_aggregation test_metrics test_federation test_end_to_end
-docs/         architecture methodology experiment_protocol limitations
+  experiments/identity  experiment/run identity, resume checks, results lock
+  utils/         config (schema, defaults, hashing), logging, io, reproducibility (seeds, git provenance)
+scripts/      run_smoke.sh run_all.sh generate_report.py flwr_debug.sh legacy/
+deploy/       Dockerfile, k8s/ templates, run_unit.py, merge_units.py, check_manifests.py (NOT built/tested)
+tests/        test_config test_resume test_data test_partitioning test_leakage test_models
+              test_soft_targets test_aggregation test_metrics test_federation test_deploy test_end_to_end
+docs/         architecture methodology experiment_protocol limitations reproducibility nrp_deployment
 data/         raw/ processed/ partitions/        (generated, git-ignored)
 results/      smoke/ full/ full_random_proxy/    (generated, git-ignored)
 ```
 
-`main.py` is the earlier kagglehub loading snippet and is not used by the
-pipeline.
+`scripts/legacy/kagglehub_load_example.py` (formerly `main.py`) is the earlier
+kagglehub loading snippet; it is not used by the pipeline.
+
+`deploy/` (Docker image, Kubernetes jobs for NRP) is a draft: the image has never
+been built and no manifest has been applied. Fill in the placeholders and run
+`python deploy/check_manifests.py deploy/k8s/job-*.yaml` before `kubectl apply`
+([docs/nrp_deployment.md](docs/nrp_deployment.md)).
 
 ## Results
+
+> **Provenance caveat.** These numbers come from the *legacy* result sets in
+> `results/`, produced before configuration hashes and source diffs were
+> recorded. They report `git commit 2c9adb7 (dirty)`, which does not identify
+> the code; their configurations match `configs/` and the repaired code trains
+> bit-identically to the committed pre-repair code, but the exact source cannot
+> be verified. Regenerate them from a clean commit before publication
+> ([docs/reproducibility.md](docs/reproducibility.md), "Legacy results").
 
 Full paper profile, executed 2026-10-24 (111/111 runs completed, 0 failed;
 74 min on a 12-core Apple Silicon laptop). Test AP, mean ± SD over seeds
@@ -173,7 +208,9 @@ set, no significance claims):
 * **Heterogeneous committees vs FedAvg (main RQ).** Both the KD committee and
   the non-distilled ensemble have higher AP than FedAvg in 11 of 12
   seed × scenario pairs (+0.020 to +0.053 mean). For the KD committee, 7 of 12
-  per-seed paired bootstrap intervals exclude zero. In both comparisons the
+  per-seed paired bootstrap intervals exclude zero (test-example resampling for
+  fixed trained models; descriptive, not a significance test, and not
+  independent across seeds). In both comparisons the
   exception is one severe-non-IID seed. FedAvg's validation AP was still
   rising at round 5 in the IID and severe scenarios (Figure 4), so a longer
   FedAvg budget could narrow the gap.

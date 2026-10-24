@@ -16,12 +16,18 @@ as a determinism diagnostic.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from heterofl.distillation.aggregation import weighted_average
 from heterofl.evaluation.metrics import average_precision, roc_auc, threshold_metrics
 from heterofl.experiments.common import MODEL_LABELS, RunContext, record_system, timed_predict
-from heterofl.experiments.ensemble import committee_weights
+from heterofl.experiments.ensemble import (
+    MissingDependencyError,
+    check_local_dependency,
+    committee_weights,
+)
 from heterofl.experiments.federated_common import build_job, job_dir, launch, select_round
 from heterofl.models.model_factory import load_model, model_seed
 from heterofl.utils.io import load_npz, read_json, write_csv, write_json
@@ -115,7 +121,8 @@ def run(ctx: RunContext) -> None:
         else:
             m = _load(ctx, jd, b, mtypes[b], r_com)
             com_val[b], com_test[b] = m.predict_proba(Xv), m.predict_proba(Xt)
-    w = committee_weights(com_val, y_val, weighting)
+    weight_diag: dict = {}
+    w = committee_weights(com_val, y_val, weighting, weight_diag)
     record_system(ctx, system="kd_committee",
                   label=f"Heterogeneous KD committee ({weighting})", model_type="committee",
                   p_val=weighted_average(com_val, sorted(banks), w),
@@ -124,11 +131,17 @@ def run(ctx: RunContext) -> None:
                          "weighting": weighting, "train_seconds": fit_total,
                          "test_inference_seconds": infer_total,
                          "federation_wall_seconds": summary["wall_seconds"],
-                         "communication_bytes": comm})
+                         "communication_bytes": comm,
+                         "weight_floor_applied": bool((weight_diag or {}).get("floored"))})
 
     # ---- round-0 (pre-distillation) models, and determinism vs. local-only
     diag = {}
     local_dir = ctx.results_root() / "local"
+    # diagnostic only: compare with the local-only run if it is provably comparable
+    try:
+        local_diff = check_local_dependency(ctx, local_dir, ("ensemble", "kd"))
+    except MissingDependencyError as exc:
+        local_diff = [str(exc)]
     for b in banks:
         m0 = _load(ctx, jd, b, mtypes[b], 0)
         p0_test, _ = timed_predict(m0, Xt)
@@ -137,13 +150,15 @@ def run(ctx: RunContext) -> None:
                       model_type=mtypes[b], p_val=val_probs[0][b], p_test=p0_test,
                       extra={"bank": b, "kd_phase": "before", "selected_round": 0})
         lp = local_dir / "predictions" / f"bank_{b}.npz"
-        if lp.is_file():
+        if lp.is_file() and not local_diff:
             lv = load_npz(lp)["p_val"]
             diag[b] = {"max_abs_diff_val_probs_vs_local": float(np.max(np.abs(lv - val_probs[0][b]))),
                        "val_ap_local": average_precision(y_val, lv),
                        "val_ap_round0": average_precision(y_val, val_probs[0][b])}
     write_json(ctx.out_dir / "diagnostics.json", {
         "round0_vs_local_only": diag,
+        "round0_vs_local_only_skipped": local_diff or None,
+        "committee_weight_diagnostics": weight_diag or None,
         "note": "Round-0 KD models use the same data, seeds and hyperparameters as the "
                 "local-only models; non-zero differences indicate nondeterminism "
                 "(e.g. thread scheduling), not a protocol difference.",
@@ -155,6 +170,9 @@ def run(ctx: RunContext) -> None:
 
 
 def _load(ctx: RunContext, jd, bank: str, mtype: str, rnd: int):
-    meta = read_json(_round_dir(jd, bank, rnd) / "meta.json")
-    return load_model(mtype, _round_dir(jd, bank, rnd) / meta["model_file"], ctx.models_cfg,
+    rd = _round_dir(jd, bank, rnd)
+    name = str(read_json(rd / "meta.json")["model_file"])
+    if Path(name).name != name or name in ("", ".", ".."):
+        raise ValueError(f"{rd / 'meta.json'}: model_file must be a plain file name, got {name!r}")
+    return load_model(mtype, rd / name, ctx.models_cfg,
                       model_seed(ctx.seed, f"bank_{bank}", mtype), n_jobs=ctx.n_jobs)

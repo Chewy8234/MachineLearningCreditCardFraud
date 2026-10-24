@@ -119,10 +119,19 @@ def collect(root: Path) -> dict:
             s = read_json(st)
             is_ab = d.parent.name == "ablations"
             scen_dir = d.parent.parent if is_ab else d.parent
+            ident = read_json(d / "run_identity.json") if (d / "run_identity.json").is_file() else {}
+            src = ident.get("source") or {}
             status_rows.append({"path": str(d.relative_to(root)), "seed": scen_dir.parent.name,
                                 "scenario": scen_dir.name, "run": d.name,
                                 "ablation": is_ab, "status": s.get("status"),
-                                "error": s.get("error"), "wall_seconds": s.get("wall_seconds")})
+                                "error": s.get("error"), "wall_seconds": s.get("wall_seconds"),
+                                "legacy_no_identity": not ident,
+                                "run_hash": ident.get("run_hash"),
+                                "config_hash": ident.get("config_hash"),
+                                "source_commit": src.get("commit"),
+                                "source_dirty": src.get("dirty"),
+                                "source_diff_sha256": src.get("diff_sha256"),
+                                "source_verified": bool(src.get("source_verified"))})
             if s.get("status") != "completed":
                 continue
             if (d / "metrics.csv").is_file():
@@ -143,6 +152,35 @@ def collect(root: Path) -> dict:
     return {"status": pd.DataFrame(status_rows), "metrics": mdf,
             "rounds": pd.concat(rounds, ignore_index=True) if rounds else pd.DataFrame(),
             "partitions": pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()}
+
+
+def provenance_summary(root: Path, status: pd.DataFrame) -> dict:
+    """Is every completed run traceable to one configuration and a clean source commit?"""
+    exp = read_json(root / "experiment.json") if (root / "experiment.json").is_file() else {}
+    done = status[status["status"] == "completed"] if not status.empty else status
+    problems = []
+    if not exp:
+        problems.append("legacy results: no experiment identity recorded (configuration "
+                        "hash and source provenance cannot be verified)")
+    if not done.empty:
+        if done["legacy_no_identity"].any():
+            problems.append(f"{int(done['legacy_no_identity'].sum())} run(s) without a recorded "
+                            "run identity")
+        if not done["source_verified"].all():
+            problems.append(f"{int((~done['source_verified']).sum())} run(s) not produced from "
+                            "a clean git commit")
+        srcs = done[["source_commit", "source_dirty", "source_diff_sha256"]].drop_duplicates()
+        if len(srcs) > 1:
+            problems.append(f"runs come from {len(srcs)} different source revisions")
+        sources_md = "; ".join(
+            f"`{(r.source_commit or 'unknown')[:12]}`"
+            f"{' (dirty, diff ' + str(r.source_diff_sha256)[:12] + ')' if r.source_dirty else ''}"
+            for r in srcs.itertuples())
+    else:
+        sources_md = "none"
+    return {"experiment_hash": exp.get("experiment_hash", "none (legacy)"),
+            "config_hash": exp.get("config_hash", "none (legacy)"),
+            "sources_md": sources_md, "problems": problems, "verified": not problems}
 
 
 def _primary(mdf: pd.DataFrame) -> pd.DataFrame:
@@ -241,8 +279,10 @@ def _group_table(summ: pd.DataFrame, scen: list[str], labels: dict, cols: list[t
 
 def tables_main(summ: pd.DataFrame, scen_primary: list[str], scen_all: list[str], labels: dict,
                 tdir: Path) -> None:
-    n_seeds = int(summ["test_average_precision_n"].max()) if not summ.empty else 0
-    ms = f"mean $\\pm$ std over {n_seeds} seed(s); all seeds share one test set"
+    n_lo = int(summ["test_average_precision_n"].min()) if not summ.empty else 0
+    n_hi = int(summ["test_average_precision_n"].max()) if not summ.empty else 0
+    n_txt = f"{n_hi}" if n_lo == n_hi else f"{n_lo}--{n_hi} (see the CSV for per-cell n)"
+    ms = f"mean $\\pm$ std over {n_txt} seed(s); all seeds share one test set"
     _group_table(summ, scen_all, labels,
                  [("test_average_precision", "AP"), ("test_roc_auc", "ROC-AUC"),
                   ("test_at_val_threshold_f1", "F1"), ("test_recall_at_fpr_0.001", "Rec@FPR=0.1\\%")],
@@ -540,9 +580,12 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
         (rdir / "summary.md").write_text("# Report\n\nNo completed runs found; nothing to report.\n")
         log.warning("No completed runs under %s", root)
         return rdir
+    prov = provenance_summary(root, status)
     publishable = bool((cfg or {}).get("publishable", False)) and not bool(
-        ((cfg or {}).get("data") or {}).get("synthetic", False))
-    banner = None if publishable else "DEVELOPMENT RESULTS - NOT FOR PUBLICATION"
+        ((cfg or {}).get("data") or {}).get("synthetic", False)) and prov["verified"]
+    banner = None if publishable else (
+        "DEVELOPMENT RESULTS - NOT FOR PUBLICATION" if not prov["verified"] or not (cfg or {}).get(
+            "publishable") else "NOT FOR PUBLICATION")
 
     all_scen = order_scenarios(cfg, mdf["scenario"].unique())
     prim_scen = [s for s in all_scen if not ((cfg or {}).get("scenarios", {}).get(s) or {}).get("ablation")]
@@ -587,7 +630,7 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
     figs["fig8"] = viz.fig_cost(cost, fdir, banner)
 
     _summary_md(root, rdir, cfg, status, summ, pairs, diff, t5, abl, hdf, figs, publishable,
-                prim_scen, all_scen, labels)
+                prim_scen, all_scen, labels, prov)
     log.info("Report written to %s", rdir)
     return rdir
 
@@ -601,19 +644,25 @@ def _md_table(df: pd.DataFrame) -> str:
 
 
 def _summary_md(root, rdir, cfg, status, summ, pairs, diff, t5, abl, hdf, figs, publishable,
-                prim_scen, all_scen, labels) -> None:
+                prim_scen, all_scen, labels, prov) -> None:
     n_done = int((status["status"] == "completed").sum())
     failed = status[status["status"] != "completed"]
     L = [f"# Experiment report: `{root.name}`", ""]
     if not publishable:
-        L += ["> **DEVELOPMENT RESULTS - NOT FOR PUBLICATION.** This profile uses a subsample "
-              "and/or synthetic data and reduced models.", ""]
+        reasons = []
+        if not (cfg or {}).get("publishable") or ((cfg or {}).get("data") or {}).get("synthetic"):
+            reasons.append("this profile uses a subsample and/or synthetic data and reduced models")
+        reasons += prov["problems"]
+        L += ["> **NOT FOR PUBLICATION.** " + "; ".join(reasons) + ".", ""]
     env = read_json(root / "environment.json") if (root / "environment.json").is_file() else {}
     split = read_json(root / "split_manifest.json") if (root / "split_manifest.json").is_file() else {}
     L += ["## Provenance", "",
           f"- Dataset SHA-256: `{split.get('dataset', {}).get('sha256')}` "
           f"(matches canonical ULB release: {split.get('dataset', {}).get('matches_known_ulb_release')})",
-          f"- Git commit: `{(env.get('git') or {}).get('commit')}` (dirty: {(env.get('git') or {}).get('dirty')})",
+          f"- Experiment identity: `{prov['experiment_hash']}`; configuration hash: "
+          f"`{prov['config_hash']}`",
+          f"- Source revision(s) of the completed runs: {prov['sources_md']}",
+          f"- Source provenance verified for every run: {prov['verified']}",
           f"- Python {env.get('python')}, flwr {env.get('packages', {}).get('flwr')}, "
           f"xgboost {env.get('packages', {}).get('xgboost')}, torch {env.get('packages', {}).get('torch')}, "
           f"scikit-learn {env.get('packages', {}).get('scikit-learn')}",
@@ -647,7 +696,10 @@ def _summary_md(root, rdir, cfg, status, summ, pairs, diff, t5, abl, hdf, figs, 
               _md_table(agg[["seed", "scenario", "a", "b", "diff", "ci_low", "ci_high",
                              "ci_excludes_zero"]]), "",
               "Each interval reflects test-example resampling for one trained pair of models; "
-              "intervals from different seeds are not independent replications.", ""]
+              "intervals from different seeds are not independent replications. "
+              "`ci_excludes_zero` is descriptive: it is not a significance test, no "
+              "multiple-comparison correction is applied, and it says nothing about "
+              "variation across training seeds or partitions.", ""]
     if not abl.empty:
         L += ["## Ablations (test AP; committee and mean bank model)", "", _md_table(abl), ""]
     L += ["## Figures", ""]

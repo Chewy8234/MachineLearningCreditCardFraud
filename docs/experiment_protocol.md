@@ -44,31 +44,52 @@ python -m heterofl.experiments.runner --config configs/paper.yaml          # run
 python -m heterofl.experiments.runner --config configs/paper.yaml \
        --seeds 123 --scenarios severe_non_iid --methods fedavg             # subset
 python -m heterofl.experiments.runner --config configs/paper.yaml \
-       --set kd.lambda_kd=1.0 --set results_dir=results/lambda1            # override
+       --set kd.lambda_kd=1.0 --set results_dir=results/lambda1            # override (new dir!)
 python scripts/generate_report.py --results results/full                   # tables/figures
 ```
 
+A changed configuration always needs its own `results_dir`; the runner refuses
+to mix it into an existing one.
+
 ## Resume, overwrite and failures
 
-* A run directory with `status.json: completed` is skipped.
+Full rules and rationale: [reproducibility.md](reproducibility.md).
+
+* A results directory holds exactly one experiment identity
+  (`experiment.json`). A configuration that differs in any semantic setting
+  (λ, models file, any hyperparameter, aggregation, rounds, split seed,
+  partition constraints, data subsample, library versions, ...) is refused with
+  exit status 4 and a list of the differing keys; write it to a new
+  `results_dir`. Changing only locations, timeouts or report settings resumes.
+* Before anything runs, every planned run is checked. A run with
+  `status.json: completed` is skipped only if its `run_identity.json` matches the
+  requested run identity and it was produced by the same source revision
+  (`--allow-source-change` relaxes the latter and records it).
 * A failed or interrupted run directory is moved to
   `<scenario>/_archive/<run>-stale-<status>-<UTC time>/` and re-run.
 * `--overwrite` re-runs completed runs; the previous directory is archived
   (`-overwritten-`), never deleted.
+* Results directories without `experiment.json` (legacy) are never resumed or
+  extended.
+* `--require-clean-source` refuses to run on an uncommitted working tree.
 * Partition failures are recorded in `<scenario>/partition_status.json`.
-* `results/<profile>/ledger.jsonl` logs every start/finish/failure;
-  `outcomes_<invocation>.csv` summarises each invocation.
+* `results/<profile>/ledger.jsonl` logs every start/finish/failure with its
+  `run_hash`; `outcomes_<invocation>.csv` summarises each invocation.
+* A lock (`.heterofl.lock`) stops a second process from writing the same
+  results directory.
 
 ## Output layout
 
 ```
 results/full/
-  config.yaml environment.json dataset_audit.json split_manifest.json ledger.jsonl runner.log
+  experiment.json config.yaml environment.json dataset_audit.json split_manifest.json
+  ledger.jsonl runner.log outcomes_<invocation>.csv
+  invocations/<invocation>/{config.yaml,environment.json,source.patch (dirty tree only)}
   seed_42/
     iid/
       partition_report.csv partition_manifest.json
       local/ centralized/ ensemble/ fedavg/ heterogeneous_kd/
-        status.json config.yaml manifest.json run.log
+        status.json run_identity.json config.yaml manifest.json run.log
         metrics.json metrics.csv runtime.json predictions/<system>.npz
         models/ (local, centralized)
         rounds.csv federation.log federation/ (fedavg, KD)
@@ -82,7 +103,12 @@ results/full/
 `manifest.json` in every run embeds the partition manifest (sizes, class
 counts, row-id hashes of every set, overlap and coverage checks) and the
 split manifest (dataset SHA-256, split seed, preprocessing provenance), plus
-package versions, hardware and git commit.
+package versions, hardware and the provenance block (run/config/experiment
+hashes, git commit, dirty flag and diff hash, `publication_reproducible`).
+`run_identity.json` holds the complete identity the run was checked against.
+
+The legacy directories `results/{full,full_random_proxy,smoke,smoke_synthetic}`
+predate this layout (no `experiment.json`, no `run_identity.json`).
 
 ## Systems evaluated
 

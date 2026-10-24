@@ -123,13 +123,34 @@ class ScenarioData:
         d = load_npz(self.view_dir / "proxy.npz")
         return d["X"], d["row_ids"]
 
-    def validation(self) -> tuple[np.ndarray, np.ndarray]:
+    @cached_property
+    def _validation(self) -> tuple[np.ndarray, np.ndarray]:
         d = load_npz(self.view_dir / "validation.npz")
         return d["X"], d["y"]
 
-    def test(self) -> tuple[np.ndarray, np.ndarray]:
-        """Final test split -- for the evaluation harness only, after training."""
+    @cached_property
+    def _test(self) -> tuple[np.ndarray, np.ndarray]:
         return self.bundle.subset("test")
+
+    def validation(self) -> tuple[np.ndarray, np.ndarray]:
+        """Validation split (loaded once per ``ScenarioData``; do not modify in place)."""
+        return self._validation
+
+    def validation_labels(self) -> np.ndarray:
+        return self._validation[1]
+
+    def test(self) -> tuple[np.ndarray, np.ndarray]:
+        """Final test split -- for the evaluation harness only, after training.
+
+        Loaded once per ``ScenarioData``; callers must not modify the arrays in place.
+        """
+        return self._test
+
+    def test_labels(self) -> np.ndarray:
+        """Test labels only (no feature matrix is materialised)."""
+        if "_test" in self.__dict__:
+            return self._test[1]
+        return self.bundle.y[self.bundle.splits["test"]]
 
     def pooled_clients(self) -> tuple[np.ndarray, np.ndarray]:
         """Union of all bank partitions, ordered by row id.
@@ -165,19 +186,25 @@ def _bundle_spec(cfg: dict, fingerprint: dict) -> dict:
 
 
 def prepare_bundle(cfg: dict) -> DataBundle:
-    """Build (or reuse, if identical) the processed bundle for this config."""
+    """Build (or reuse, if identical) the processed bundle for this config.
+
+    The CSV is hashed first; a cached bundle whose spec (including that SHA-256)
+    matches is reused without parsing the CSV again.
+    """
     csv_path = resolve_path(cfg, cfg["data"]["path"])
-    df = load_creditcard(csv_path)
+    if not csv_path.is_file():
+        load_creditcard(csv_path)  # raises DatasetNotFoundError with instructions
     fingerprint = dataset_fingerprint(csv_path)
     spec = _bundle_spec(cfg, fingerprint)
     tag = f"{'synthetic' if cfg['data'].get('synthetic') else 'ulb'}-{_config_hash(spec)}"
     out = resolve_path(cfg, cfg["data"]["processed_dir"]) / tag
     done = out / "split_manifest.json"
     if done.is_file() and read_json(done).get("spec") == spec:
-        log.info("Reusing processed bundle %s", out)
+        log.info("Reusing processed bundle %s (dataset SHA-256 verified)", out)
         return DataBundle(out)
 
     log.info("Building processed bundle %s", out)
+    df = load_creditcard(csv_path)
     audit = audit_dataset(df, expect_ulb=not cfg["data"].get("synthetic", False))
     audit["fingerprint"] = fingerprint
     audit["synthetic"] = bool(cfg["data"].get("synthetic", False))

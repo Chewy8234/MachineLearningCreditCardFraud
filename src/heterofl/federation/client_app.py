@@ -2,7 +2,8 @@
 
 Identity: a SuperNode's ``node_config['partition-id']`` (0, 1, 2) selects its
 bank and model type from ``job.json``; identity is re-reported in every reply
-and checked by the server.
+and checked by the server. A node whose partition id has no bank answers
+``query.identify`` with ``assigned=False`` (a normal reply, not an error).
 
 Handlers
 --------
@@ -15,7 +16,10 @@ Handlers
                      new proxy probabilities
 
 Raw private training rows never leave the client: replies contain only proxy
-probabilities (KD) or MLP parameters (FedAvg) plus scalar metrics.
+probabilities (KD) or MLP parameters (FedAvg) plus scalar metrics. Those metrics
+include the client's AP on the shared, LABELLED validation split (``val-ap`` /
+``local-val-ap``): the server receives these label-derived scalars, not the
+validation labels themselves (see docs/limitations.md, "Data access").
 """
 
 from __future__ import annotations
@@ -37,7 +41,7 @@ from heterofl.models.mlp import MLPModel
 from heterofl.models.model_factory import create_model, model_seed
 from heterofl.utils.io import load_npz
 from heterofl.utils.logging import get_logger
-from heterofl.utils.reproducibility import derive_seed, sha256_array
+from heterofl.utils.reproducibility import configure_torch_threads, derive_seed, sha256_array
 
 log = get_logger("federation.client")
 
@@ -66,8 +70,14 @@ def _validation(view_dir: str) -> tuple[np.ndarray, np.ndarray]:
 
 
 # --------------------------------------------------------------------------- helpers
-def _resolve(msg: Message, context: Context) -> tuple[FederatedJob, ClientSpec]:
+def _job(msg: Message) -> FederatedJob:
     job = load_job(str(msg.content[M.CONFIG]["job-path"]))
+    configure_torch_threads(job.torch_threads)
+    return job
+
+
+def _resolve(msg: Message, context: Context) -> tuple[FederatedJob, ClientSpec]:
+    job = _job(msg)
     pid = int(context.node_config["partition-id"])
     return job, job.client(pid)
 
@@ -85,18 +95,26 @@ def _identity(job: FederatedJob, spec: ClientSpec) -> dict:
 
 
 def _scalar_metrics(d: dict) -> dict:
+    """Finite numeric entries of ``d`` as floats (bools count as 0/1)."""
     return {k: float(v) for k, v in d.items()
-            if isinstance(v, (int, float, np.floating, np.integer)) and v is not None
-            and np.isfinite(v)}
+            if isinstance(v, (int, float, np.integer, np.floating)) and np.isfinite(v)}
 
 
 # --------------------------------------------------------------------------- identify
+def identify_info(job: FederatedJob, partition_id: int, node_id: int) -> dict:
+    """Reply payload of ``query.identify``; ``assigned`` is False for nodes without a bank."""
+    spec = job.find_client(partition_id)
+    if spec is None:
+        return {"assigned": False, "partition-id": int(partition_id), "mode": job.mode,
+                "node-id": int(node_id)}
+    return {"assigned": True, **_identity(job, spec), "mode": job.mode, "node-id": int(node_id)}
+
+
 @app.query("identify")
 def identify(msg: Message, context: Context) -> Message:
-    job, spec = _resolve(msg, context)
-    content = RecordDict({M.INFO: ConfigRecord({**_identity(job, spec), "mode": job.mode,
-                                                 "node-id": int(context.node_id)})})
-    return Message(content=content, reply_to=msg)
+    job = _job(msg)
+    info = identify_info(job, int(context.node_config["partition-id"]), int(context.node_id))
+    return Message(content=RecordDict({M.INFO: ConfigRecord(info)}), reply_to=msg)
 
 
 # --------------------------------------------------------------------------- FedAvg

@@ -20,7 +20,34 @@ import numpy as np
 from heterofl.distillation.soft_targets import build_distillation_set
 from heterofl.models.base import FraudModel
 from heterofl.models.mlp import MLPModel
+from heterofl.models.random_forest import RandomForestModel, bootstrap_draws_per_tree
 from heterofl.models.xgboost_model import XGBoostModel
+from heterofl.utils.logging import get_logger
+
+log = get_logger("distillation.trainers")
+
+
+def rf_sampling_budget(model: RandomForestModel, ds) -> dict:
+    """Expected composition of each tree's weighted bootstrap sample.
+
+    Rows are drawn with probability proportional to their weight, so in expectation a
+    tree draws ``draws * W_local / W_total`` local rows and ``draws * W_proxy / W_total``
+    proxy rows (``W_proxy_pos`` of which carry label 1). With ``max_samples=1.0`` and
+    ``W_local = N_local``, ``W_proxy = lambda * N_local``, this is ``N_local`` local
+    draws -- the local-only budget -- plus ``lambda * N_local`` proxy draws.
+    """
+    params = model.effective_params(ds.sample_weight)
+    draws = bootstrap_draws_per_tree(params, len(ds.y), ds.sample_weight)
+    if ds.sample_weight is None:
+        return {"rf_bootstrap_draws_per_tree": draws, "rf_expected_local_draws": float(draws),
+                "rf_expected_proxy_draws": 0.0, "rf_expected_proxy_positive_draws": 0.0}
+    w = ds.sample_weight
+    total = float(w.sum())
+    proxy_pos = ds.is_proxy & (ds.y == 1)
+    return {"rf_bootstrap_draws_per_tree": draws,
+            "rf_expected_local_draws": draws * float(w[~ds.is_proxy].sum()) / total,
+            "rf_expected_proxy_draws": draws * float(w[ds.is_proxy].sum()) / total,
+            "rf_expected_proxy_positive_draws": draws * float(w[proxy_pos].sum()) / total}
 
 
 def initial_fit(model: FraudModel, X: np.ndarray, y: np.ndarray) -> dict:
@@ -54,4 +81,11 @@ def distill_update(model: FraudModel, X_local: np.ndarray, y_local: np.ndarray,
     else:
         info = model.fit(ds.X, ds.y, ds.sample_weight)
     info.update(ds.info)
+    if isinstance(model, RandomForestModel):
+        info.update(rf_sampling_budget(model, ds))
+        log.info("RF distillation (lambda=%g): %d bootstrap draws/tree, expected %.1f local "
+                 "(%d local rows) + %.1f proxy (%.1f labelled 1)", lam,
+                 info["rf_bootstrap_draws_per_tree"], info["rf_expected_local_draws"],
+                 ds.info["n_local"], info["rf_expected_proxy_draws"],
+                 info["rf_expected_proxy_positive_draws"])
     return info

@@ -17,6 +17,9 @@ from __future__ import annotations
 import numpy as np
 
 from heterofl.models.base import check_probabilities
+from heterofl.utils.logging import get_logger
+
+log = get_logger("distillation.aggregation")
 
 
 class AggregationError(ValueError):
@@ -36,14 +39,29 @@ def validate_prediction_vectors(preds: dict[str, np.ndarray], expected_len: int)
 
 
 def _normalise_weights(members: list[str], weights: dict[str, float] | None) -> np.ndarray:
+    """Normalised weights for ``members``; ``None`` means equal weights (the primary rule).
+
+    Explicit weights must be finite, non-negative and have a positive sum over the
+    members being averaged. Anything else is an error: a degenerate weight vector is
+    never silently replaced by equal weights.
+    """
     if weights is None:
         w = np.ones(len(members))
-    else:
+        return w / w.sum()
+    missing = [m for m in members if m not in weights]
+    if missing:
+        raise AggregationError(f"No aggregation weight for {missing} (weights: {weights})")
+    try:
         w = np.array([float(weights[m]) for m in members], dtype=np.float64)
-        if np.any(~np.isfinite(w)) or np.any(w < 0):
-            raise AggregationError(f"Invalid aggregation weights {weights}")
-        if w.sum() <= 0:
-            w = np.ones(len(members))
+    except (TypeError, ValueError) as exc:
+        raise AggregationError(f"Non-numeric aggregation weights {weights}") from exc
+    if np.any(~np.isfinite(w)):
+        raise AggregationError(f"Non-finite aggregation weights {weights}")
+    if np.any(w < 0):
+        raise AggregationError(f"Negative aggregation weights {weights}")
+    if not w.sum() > 0:
+        raise AggregationError(f"Aggregation weights for {members} sum to zero ({weights}); "
+                               "refusing to fall back to equal weights silently")
     return w / w.sum()
 
 
@@ -81,12 +99,36 @@ def compute_teachers(preds: dict[str, np.ndarray], mode: str, expected_len: int,
     raise AggregationError(f"Unknown teacher mode {mode!r}")
 
 
-def validation_ap_weights(val_ap: dict[str, float], floor: float = 1e-3) -> dict[str, float]:
+def validation_ap_weights(val_ap: dict[str, float], floor: float = 1e-3,
+                          diagnostics: dict | None = None) -> dict[str, float]:
     """Weights proportional to each member's validation Average Precision.
 
-    Derived from validation labels only. A small floor keeps every member in
-    the committee; NaN APs (e.g. no positives) fall back to the floor.
+    The APs are computed on the shared, labelled validation split (by the harness for
+    the ensemble, by each client for KD teachers -- the server then receives only
+    these scalar APs, not validation labels). A documented floor keeps every member
+    in the committee: a member whose AP is undefined (NaN -- e.g. no validation
+    positives -- or the client's ``-1`` "undefined" sentinel) or below ``floor``
+    gets weight ``floor`` instead. Every such substitution is logged as a warning and,
+    if ``diagnostics`` is given, recorded there as ``{"floored": {member: reported_ap}}``
+    so it is visible in the run's outputs.
     """
-    w = {k: max(float(v), floor) if np.isfinite(v) else floor for k, v in val_ap.items()}
+    if not val_ap:
+        raise AggregationError("No validation APs to weight by")
+    if not floor > 0:
+        raise AggregationError("validation_ap_weights needs a positive floor")
+    w, floored = {}, {}
+    for k, v in val_ap.items():
+        v = float(v)
+        if np.isfinite(v) and v >= floor:
+            w[k] = v
+        else:
+            w[k] = floor
+            floored[k] = v if np.isfinite(v) else None
+    if floored:
+        log.warning("validation-AP weighting: member(s) %s had undefined or < %g AP %s; "
+                    "using the floor weight %g", sorted(floored), floor, floored, floor)
+    if diagnostics is not None:
+        diagnostics["floored"] = floored
+        diagnostics["floor"] = floor
     total = sum(w.values())
     return {k: v / total for k, v in w.items()}

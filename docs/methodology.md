@@ -102,6 +102,17 @@ Each bank receives only its own teacher. No parameters are aggregated and no
 global student exists. Ablations: full-committee teacher (includes the
 student's own prediction) and validation-AP-weighted teachers.
 
+Every reply also carries scalar metrics, including the client's Average Precision
+on the shared labelled validation split. The server therefore receives
+validation-derived scalars (never validation rows or labels); with equal
+weighting it only logs them, with validation-AP weighting (ablation D) it
+computes `w_k ∝ max(AP_k, 10⁻³)` from them — an undefined AP (no positives,
+reported as −1) gets the floor weight, which is logged and recorded in
+`rounds.json` (`teacher_weight_diagnostics`). Explicit weights that are
+negative, non-finite or sum to zero are an error; there is no silent fallback to
+equal weights. See docs/limitations.md, "Data access", for which party can read
+which data.
+
 Client update with `λ = lambda_kd` (primary 0.5), private labels remaining
 the supervised signal:
 
@@ -122,7 +133,10 @@ the supervised signal:
   as the local-only forest plus λ·N_local proxy draws whose labels follow the
   teacher. This *approximates* soft-target training (each tree sees hard
   labels sampled from T; the forest averages them). With λ = 0 no weights are
-  passed and the local-only forest is reproduced exactly.
+  passed and the local-only forest is reproduced exactly. These sampling
+  properties were verified against the installed scikit-learn by counting the
+  rows actually drawn per tree (`tests/test_models.py`), and each round logs the
+  bootstrap size and expected local / proxy / proxy-positive draws.
 
 Hard pseudo-labels are not used (with 0.17 % fraud they would make almost all
 proxy rows negative). After each round, each bank's validation predictions

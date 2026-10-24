@@ -27,10 +27,10 @@
   the simulation, nothing *prevents* a client process from opening another
   bank's file — isolation is by construction of the code, not by OS
   sandboxing.
-* **Validation set location.** Validation data are held by the experimenter
-  and used by clients only to *report* per-round metrics (and, in ablation D,
-  to weight teachers). A real deployment would need its own validation data
-  per party.
+* **Shared labelled validation set (simulation assumption).** One labelled
+  validation split is shared by all parties; see "Data access" below. A real
+  deployment would need its own validation data per party, and its metrics
+  would then differ per party.
 * **Duplicates.** 1,081 exact duplicate rows are retained (no silent
   removal); 299 test rows have an identical feature vector in the training
   data. This may slightly favour memorising models (e.g. fully grown random
@@ -54,7 +54,19 @@
 
 * **Random Forest soft targets are an approximation.** With the weighted
   bootstrap each tree sees hard labels sampled from the teacher; small
-  teacher probabilities are rarely sampled at all.
+  teacher probabilities are rarely sampled at all. Verified against
+  scikit-learn 1.9.1: each tree draws `int(N_local · (1 + λ))` rows with
+  probability proportional to weight, i.e. ≈ N_local local rows (the local-only
+  budget) plus ≈ λ·N_local proxy rows, whose label-1 share equals the mean
+  (clipped) teacher probability. λ therefore also scales the bootstrap size —
+  a deliberate, controlled part of "distillation strength", logged every round
+  as `rf_bootstrap_draws_per_tree` / `rf_expected_{local,proxy,proxy_positive}_draws`.
+  This relies on the 1.9 semantics of a float `max_samples` with weights
+  (relative to `sum(sample_weight)`); other scikit-learn versions may differ,
+  which is why the library versions are part of every run identity.
+* **XGBoost's total sample weight grows with λ** (`N_local·(1+λ)`), so
+  weight-based regularisers such as `min_child_weight` act on a larger total
+  hessian when λ > 0; this is inherent to the exact weighted soft-target loss.
 * **XGBoost and RF are retrained every round**, the MLP is fine-tuned
   incrementally. The KD MLP therefore receives 10 more epochs than the
   local-only MLP; the λ = 0 ablation is the control for this extra training.
@@ -70,20 +82,63 @@
 * **Committee combination** is a plain probability average; probabilities of
   differently trained models are not calibrated to each other.
 
+## Data access (who sees what)
+
+| Data | Contents | Who can read it in the simulation | Sent over Flower? |
+|---|---|---|---|
+| Private client training records (`view/bank_<X>.npz`) | features + labels of one bank's partition | that bank's ClientApp; the harness (local-only, centralized reference) | never |
+| Shared reference / proxy set (`view/proxy.npz`) | features + row ids, **no labels** | every client; the server knows only its hash | per-example **predictions** on it (KD) and per-bank teacher vectors |
+| Shared labelled validation set (`view/validation.npz`) | features + **labels** | every client; the FedAvg **server** (server-side evaluation of the global model each round); the harness (threshold and round selection, validation-AP weights) | no rows or labels, but **validation-derived scalars**: each KD client's `val-ap` and each FedAvg client's `local-val-ap` every round |
+| Final held-out test set | features + labels | the evaluation harness only, after training and model selection | never (not in the federation view) |
+
+Consequences:
+
+* The KD server never receives raw rows, labels or model parameters, but it *does*
+  receive label-derived information: every round, each client reports its Average
+  Precision on the shared labelled validation set. In the primary configuration
+  (`teacher_weighting: equal`) the server only logs these values; with
+  `teacher_weighting: validation_ap` (ablation D) it uses them to weight teachers.
+* The FedAvg server holds the validation labels itself, because it evaluates the
+  global model on them after every round.
+* The proxy set is *label-informed* in the primary profile: labels were used to
+  stratify it before they were dropped (see "Proxy set assumption").
+* These are properties of the simulation protocol, documented as assumptions; they
+  were not changed to make the protocol look stronger.
+
 ## Privacy and security
 
 * Sharing per-example predictions on a public proxy set is **not** a formal
-  privacy guarantee. Predictions can leak information about the training
-  data (membership inference, model inversion); no differential privacy,
-  secure aggregation or cryptographic protection is applied.
+  privacy guarantee, and neither is sharing only scalar metrics. Predictions can
+  leak information about the training data (membership inference, model
+  inversion); no differential privacy, secure aggregation or cryptographic
+  protection is applied.
 * No adversarial or Byzantine clients are modelled.
+* The simulation trusts its own files and messages: model checkpoints are
+  loaded with `joblib`/pickle for the Random Forest, `job-path` values arrive in
+  Flower messages, and messages are not authenticated. The path checks in the
+  code catch mistakes, not attacks; the apps are not safe to deploy against an
+  untrusted SuperLink or untrusted clients as they are
+  (docs/reproducibility.md, "Checkpoint trust").
 
 ## Statistics
 
 * Three seeds share one test set: seed variation is training variability,
-  not independent replication, and no significance tests are claimed.
+  not independent replication, and no significance tests are claimed. The
+  t-interval columns in `seed_summary.csv` are descriptive only.
 * Bootstrap intervals quantify test-sample uncertainty for a fixed trained
-  model only.
+  model only. A paired interval that excludes zero for one seed is not a
+  significance result (no multiple-comparison correction; it ignores
+  training variability).
+* Seed-paired comparisons pair rows by (scenario, seed) and verify that both
+  come from the same realised partition; missing or failed runs are dropped
+  and reduce `n_pairs`, they are never counted as zero.
+
+## Reproducibility of the existing results
+
+* The result sets in `results/` were produced before configuration hashing and
+  source provenance were recorded; their source revision cannot be verified
+  (docs/reproducibility.md, "Legacy results"). Publication results should be
+  regenerated from a clean commit.
 
 ## Runtime and communication measurements
 

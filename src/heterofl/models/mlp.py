@@ -15,8 +15,45 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from heterofl.models.base import FraudModel, check_probabilities
-from heterofl.utils.reproducibility import derive_seed
+from heterofl.models.base import (
+    FraudModel,
+    check_probabilities,
+    int_range,
+    real_range,
+    validate_params,
+)
+from heterofl.utils.reproducibility import configure_torch_threads, derive_seed
+
+# Process-wide torch setting, applied ONCE when this module is first imported (not
+# per model construction): a single intra-op thread. With XGBoost's OpenMP runtime
+# loaded in the same process, multi-threaded torch deadlocks on macOS arm64
+# (reproduced with torch 2.14.1 / xgboost 3.4.1); the network is small, so this
+# also keeps CPU runs deterministic. Entry points (runner, Flower client/server
+# apps) re-apply ``models.mlp.torch_threads`` explicitly via ``configure_torch_threads``.
+configure_torch_threads(1)
+
+
+def _hidden_sizes(v):
+    if not isinstance(v, (list, tuple)) or any(int_range(1)(h) for h in v):
+        return "must be a list of positive integers"
+    return None
+
+
+def _device(v):
+    return None if isinstance(v, str) and v else "must be a torch device string (cpu, cuda, auto)"
+
+
+PARAM_SPECS = {
+    "hidden_sizes": _hidden_sizes,
+    "dropout": real_range(0, 1, high_open=True),
+    "learning_rate": real_range(0, low_open=True),
+    "weight_decay": real_range(0),
+    "batch_size": int_range(1),
+    "epochs": int_range(1),
+    "device": _device,
+    "torch_threads": int_range(1),
+}
+REQUIRED_PARAMS = ("hidden_sizes", "learning_rate", "batch_size", "epochs")
 
 
 class MLPNet(nn.Module):
@@ -46,20 +83,33 @@ class MLPModel(FraudModel):
     model_type = "mlp"
     file_suffix = ".pt"
 
+    @staticmethod
+    def validate_params(params: dict) -> None:
+        validate_params("mlp", params, PARAM_SPECS, REQUIRED_PARAMS)
+
     def __init__(self, params: dict, seed: int, n_features: int = 30, n_jobs: int = 1):
+        self.validate_params(params)
         self.params = dict(params)
         self.seed = int(seed)
         self.n_features = int(n_features)
         self.device = resolve_device(self.params.get("device", "cpu"))
         self.n_train_calls = 0
-        # Single intra-op thread, deliberately (n_jobs is not used for torch): with
-        # XGBoost's OpenMP runtime loaded in the same process, multi-threaded torch
-        # deadlocks on macOS arm64 (reproduced with torch 2.14.1 / xgboost 3.4.1).
-        # The network is small, so this also keeps CPU runs deterministic.
-        torch.set_num_threads(int(self.params.get("torch_threads", 1)))
-        torch.manual_seed(derive_seed(self.seed, "mlp-init"))
-        self.net = MLPNet(self.n_features, list(self.params["hidden_sizes"]),
-                          float(self.params.get("dropout", 0.0))).to(self.device)
+        # n_jobs is deliberately not used for torch (see configure_torch_threads above).
+        # Initialisation draws from torch's global RNG (nn.Linear has no generator
+        # argument), so it runs inside a forked RNG scope: the weights are exactly what
+        # ``torch.manual_seed(derive_seed(seed, "mlp-init"))`` produces, and the caller's
+        # global RNG state is left untouched.
+        with self._rng_scope():
+            torch.manual_seed(derive_seed(self.seed, "mlp-init"))
+            self.net = MLPNet(self.n_features, list(self.params["hidden_sizes"]),
+                              float(self.params.get("dropout", 0.0))).to(self.device)
+
+    def _rng_scope(self):
+        """Fork torch's global RNG (CPU, plus the CUDA device in use) and restore it on exit."""
+        if self.device.type == "cuda":
+            index = self.device.index if self.device.index is not None else torch.cuda.current_device()
+            return torch.random.fork_rng(devices=[index], device_type="cuda")
+        return torch.random.fork_rng(devices=[])
 
     # ------------------------------------------------------------------ params
     def get_state_dict(self) -> "OrderedDict[str, torch.Tensor]":
@@ -77,9 +127,14 @@ class MLPModel(FraudModel):
                                 weight_decay=float(self.params.get("weight_decay", 0.0)))
 
     def _generator(self) -> torch.Generator:
+        """Shuffling generator for one training call; also seeds dropout.
+
+        Dropout has no generator argument and draws from torch's global RNG, so it is
+        seeded per training call here. Callers must be inside ``_rng_scope()`` so the
+        seeding does not leak into the rest of the process.
+        """
         g = torch.Generator()
         g.manual_seed(derive_seed(self.seed, "mlp-train", self.n_train_calls))
-        # dropout draws from the global RNG; seed it per training call as well
         torch.manual_seed(derive_seed(self.seed, "mlp-dropout", self.n_train_calls))
         self.n_train_calls += 1
         return g
@@ -108,6 +163,13 @@ class MLPModel(FraudModel):
         ``lambda_kd`` regardless of how many proxy vs. local rows exist. One proxy
         mini-batch is drawn (cycling through a shuffled proxy order) per local step.
         """
+        with self._rng_scope():
+            return self._fit_distill(X, y, X_proxy, teacher, lambda_kd, epochs=epochs,
+                                     proxy_batch_size=proxy_batch_size, prob_clip=prob_clip,
+                                     sample_weight=sample_weight)
+
+    def _fit_distill(self, X, y, X_proxy, teacher, lambda_kd: float, *, epochs, proxy_batch_size,
+                     prob_clip, sample_weight) -> dict:
         epochs = int(epochs if epochs is not None else self.params["epochs"])
         bs = int(self.params["batch_size"])
         pbs = int(proxy_batch_size or bs)
@@ -183,7 +245,13 @@ class MLPModel(FraudModel):
     @classmethod
     def load(cls, path: Path, params: dict | None = None, seed: int | None = None,
              n_jobs: int = 1) -> "MLPModel":
-        blob = torch.load(path, map_location="cpu", weights_only=False)
+        """Load a checkpoint written by ``save``.
+
+        ``weights_only=True`` restricts unpickling to tensors and plain containers, so a
+        tampered file cannot execute code. Checkpoints written by earlier versions of
+        this project (same dict layout) load unchanged.
+        """
+        blob = torch.load(path, map_location="cpu", weights_only=True)
         obj = cls(blob["params"], blob["seed"], blob["n_features"], n_jobs)
         obj.set_state_dict(blob["state_dict"])
         obj.n_train_calls = int(blob.get("n_train_calls", 0))

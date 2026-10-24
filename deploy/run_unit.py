@@ -77,6 +77,10 @@ def main(argv: list[str] | None = None) -> int:
         for i, (s, sc) in enumerate(table):
             print(f"{i:3d}  seed={s}  scenario={sc}")
         return 0
+    image = os.environ.get("IMAGE_REF") or ""
+    if "REPLACE_" in image:
+        p.error(f"IMAGE_REF={image!r} still contains a placeholder; fill in deploy/k8s/*.yaml "
+                "(check with deploy/check_manifests.py) before applying")
     idx = a.index if a.index is not None else int(os.environ["JOB_COMPLETION_INDEX"])
     if not a.tag:
         p.error("--tag (or $RUN_TAG) is required so results from different settings never mix")

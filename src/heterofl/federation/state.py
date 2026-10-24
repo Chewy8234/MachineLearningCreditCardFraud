@@ -70,7 +70,11 @@ class ClientStateStore:
         if int(st["round"]) != expected_round:
             raise ClientStateError(f"bank {self.bank}: state is at round {st['round']}, "
                                    f"expected {expected_round}")
-        path = Path(str(st["model-path"]))
+        path = Path(str(st["model-path"])).resolve()
+        # Only this bank's own checkpoints (written by save_round) are ever loaded.
+        if not path.is_relative_to(self.dir.resolve()):
+            raise ClientStateError(f"bank {self.bank}: checkpoint {path} is outside this "
+                                   f"bank's state directory {self.dir}; refusing to load it")
         if not path.is_file():
             raise ClientStateError(f"bank {self.bank}: checkpoint {path} is missing")
         if sha256_file(path) != st["model-sha256"]:

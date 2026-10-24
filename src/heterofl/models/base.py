@@ -2,10 +2,80 @@
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from numbers import Integral, Real
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+
+#: A parameter check returns an error message, or ``None`` if the value is valid.
+ParamCheck = Callable[[Any], "str | None"]
+
+
+def int_range(low: int, high: int | None = None, allow_none: bool = False) -> ParamCheck:
+    def check(v):
+        if v is None and allow_none:
+            return None
+        if isinstance(v, bool) or not isinstance(v, Integral) or v < low or (
+                high is not None and v > high):
+            return f"must be an integer in [{low}, {high if high is not None else 'inf'}]"
+        return None
+    return check
+
+
+def real_range(low: float, high: float | None = None, *, low_open: bool = False,
+               high_open: bool = False, allow_none: bool = False) -> ParamCheck:
+    def check(v):
+        if v is None and allow_none:
+            return None
+        if isinstance(v, bool) or not isinstance(v, Real) or not math.isfinite(v):
+            return "must be a finite number"
+        if v < low or (low_open and v == low) or (high is not None and (
+                v > high or (high_open and v == high))):
+            return (f"must be in {'(' if low_open else '['}{low}, "
+                    f"{high if high is not None else 'inf'}{')' if high_open or high is None else ']'}")
+        return None
+    return check
+
+
+def one_of(*values, allow_none: bool = False) -> ParamCheck:
+    def check(v):
+        if (v is None and allow_none) or v in values:
+            return None
+        return f"must be one of {list(values)}"
+    return check
+
+
+def any_of(*checks: ParamCheck) -> ParamCheck:
+    def check(v):
+        errors = [c(v) for c in checks]
+        return None if any(e is None for e in errors) else " or ".join(e for e in errors if e)
+    return check
+
+
+def validate_params(model_type: str, params: dict, specs: dict[str, ParamCheck],
+                    required: tuple[str, ...] = ()) -> None:
+    """Reject unknown, missing or out-of-range hyperparameters with a descriptive ``ValueError``.
+
+    A typo (``n_estimator``) must stop the experiment instead of silently falling
+    back to the library default.
+    """
+    if not isinstance(params, dict):
+        raise ValueError(f"{model_type} hyperparameters must be a mapping, got {type(params).__name__}")
+    unknown = sorted(set(params) - set(specs))
+    if unknown:
+        raise ValueError(f"Unknown {model_type} hyperparameter(s) {unknown}; "
+                         f"valid names: {sorted(specs)}")
+    missing = [k for k in required if k not in params]
+    if missing:
+        raise ValueError(f"Missing required {model_type} hyperparameter(s) {missing}")
+    for key, value in params.items():
+        err = specs[key](value)
+        if err:
+            raise ValueError(f"{model_type}.{key}={value!r} {err}")
 
 
 class FraudModel(ABC):

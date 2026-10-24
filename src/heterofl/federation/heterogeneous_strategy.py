@@ -10,10 +10,13 @@ Protocol (FedMD-inspired, per-example proxy distillation)::
              bank   --p_k(proxy)--> server
 
 The server never sees model parameters, never builds a global model, and has
-no access to proxy labels, private data, or the test split. Every reply is
-validated: all expected banks must answer without error, identities must match
-the round-0 identification, proxy-set hashes must match, and prediction
-vectors must be finite probabilities of the right length.
+no access to proxy labels, private data, or the test split. It does receive each
+client's scalar Average Precision on the shared labelled validation split (a
+label-derived metric, used for logging and, with ``teacher_weighting:
+validation_ap``, for teacher weights). Every reply is validated: all expected
+banks must answer without error, identities must match the round-0
+identification, proxy-set hashes must match, and prediction vectors must be
+finite probabilities of the right length.
 """
 
 from __future__ import annotations
@@ -55,7 +58,10 @@ def identify_clients(grid: Grid, job: FederatedJob) -> dict[int, ClientSpec]:
     """Query every node for its partition id; return node_id -> ClientSpec.
 
     Extra nodes (e.g. a 10-node local SuperLink used with ``flwr run``) whose
-    partition id has no bank are ignored; missing banks are an error.
+    partition id has no bank reply ``assigned=False`` and are ignored. Every error
+    reply is fatal: no exception text is pattern-matched, so a client that crashes
+    while identifying can never be mistaken for an unassigned node. Missing or
+    duplicated banks are an error.
     """
     node_ids = wait_for_nodes(grid, len(job.clients), job.node_wait_timeout)
     cfg = ConfigRecord({"job-path": str(job.path)})
@@ -63,17 +69,30 @@ def identify_clients(grid: Grid, job: FederatedJob) -> dict[int, ClientSpec]:
                     message_type=M.MSG_IDENTIFY, group_id="identify") for n in node_ids]
     replies = list(grid.send_and_receive(msgs, timeout=job.round_timeout))
     mapping: dict[int, ClientSpec] = {}
+    ignored = []
     for r in replies:
         if r.has_error():
-            reason = r.error.reason
-            if "No client is assigned" in reason:
-                continue
-            raise FederationError(f"identify failed on node {r.metadata.src_node_id}: {reason}")
+            raise FederationError(f"identify failed on node {r.metadata.src_node_id}: "
+                                  f"code={r.error.code} reason={r.error.reason}")
         info = r.content[M.INFO]
+        if "assigned" not in info:
+            raise FederationError(f"Node {r.metadata.src_node_id}: identify reply has no "
+                                  "'assigned' field (incompatible client version)")
+        if not bool(info["assigned"]):
+            if job.find_client(int(info["partition-id"])) is not None:
+                raise FederationError(f"Node {r.metadata.src_node_id} says partition "
+                                      f"{info['partition-id']} is unassigned, but the job assigns it")
+            ignored.append((r.metadata.src_node_id, int(info["partition-id"])))
+            continue
         spec = job.client(int(info["partition-id"]))
         if info["bank"] != spec.bank or info["model-type"] != job.model_type_for(spec):
             raise FederationError(f"Node {r.metadata.src_node_id} reported inconsistent identity")
+        if spec in mapping.values():
+            raise FederationError(f"Two nodes claim bank {spec.bank}")
         mapping[r.metadata.src_node_id] = spec
+    if ignored:
+        log.info("Ignoring %d node(s) without a bank: %s", len(ignored),
+                 ", ".join(f"node {n} (partition-id {p})" for n, p in ignored))
     banks = sorted(s.bank for s in mapping.values())
     if banks != sorted(c.bank for c in job.clients):
         raise FederationError(f"Identified banks {banks}, expected "
@@ -147,10 +166,12 @@ class HeterogeneousKDStrategy:
                 "messages_down": len(msgs), "messages_up": len(replies), "round_seconds": wall}
         return preds, metrics, comm
 
-    def _weights(self, metrics: dict[str, dict]) -> dict[str, float] | None:
+    def _weights(self, metrics: dict[str, dict], diagnostics: dict) -> dict[str, float] | None:
+        """Teacher weights from the clients' reported validation APs (``-1`` = undefined)."""
         if self.kd["teacher_weighting"] == "equal":
             return None
-        return validation_ap_weights({b: float(m["val-ap"]) for b, m in metrics.items()})
+        return validation_ap_weights({b: float(m["val-ap"]) for b, m in metrics.items()},
+                                     diagnostics=diagnostics)
 
     # ----------------------------------------------------------------- full run
     def run(self, grid: Grid, mapping: dict[int, ClientSpec]) -> dict:
@@ -159,13 +180,17 @@ class HeterogeneousKDStrategy:
         preds, metrics, comm = self._send_round(grid, mapping, 0, None)
         self._log_round(0, metrics, comm, None, None)
         for rnd in range(1, self.job.num_rounds + 1):
-            weights = self._weights(metrics)
-            teachers = compute_teachers(preds, self.kd["teacher"], self.n_proxy, weights)
+            weight_diag: dict = {}
+            weights = self._weights(metrics, weight_diag)
+            try:
+                teachers = compute_teachers(preds, self.kd["teacher"], self.n_proxy, weights)
+            except AggregationError as exc:
+                raise FederationError(f"KD round {rnd}: teacher aggregation failed: {exc}") from exc
             stats = {b: {"mean": float(t.mean()), "max": float(t.max()),
                          "sum": float(t.sum()), "n_above_0.5": int((t >= 0.5).sum())}
                      for b, t in teachers.items()}
             preds, metrics, comm = self._send_round(grid, mapping, rnd, teachers)
-            self._log_round(rnd, metrics, comm, stats, weights)
+            self._log_round(rnd, metrics, comm, stats, weights, weight_diag or None)
         summary = {
             "mode": "kd",
             "teacher": self.kd["teacher"],
@@ -182,9 +207,11 @@ class HeterogeneousKDStrategy:
         write_json(self.server_dir / "rounds.json", summary)
         return summary
 
-    def _log_round(self, rnd, metrics, comm, teacher_stats, weights) -> None:
+    def _log_round(self, rnd, metrics, comm, teacher_stats, weights,
+                   weight_diagnostics=None) -> None:
         rec = {"round": rnd, **comm, "client_metrics": metrics,
-               "teacher_stats": teacher_stats, "teacher_weights": weights}
+               "teacher_stats": teacher_stats, "teacher_weights": weights,
+               "teacher_weight_diagnostics": weight_diagnostics}
         self.rounds.append(rec)
         log.info("KD round %d: %s | up=%d B down=%d B (%.1fs)", rnd,
                  ", ".join(f"{b}: val-AP={m['val-ap']:.4f}" for b, m in sorted(metrics.items())),

@@ -114,13 +114,40 @@ def summarize_across_seeds(df: pd.DataFrame, group_cols: list[str], metric_cols:
     return pd.DataFrame(rows)
 
 
+class PairingError(ValueError):
+    """Rows cannot be paired unambiguously (duplicates, or different partitions)."""
+
+
 def paired_seed_differences(df: pd.DataFrame, method_a: str, method_b: str, metric: str,
                             by: list[str], pair_on: str = "seed",
-                            system_col: str = "system_label") -> pd.DataFrame:
-    """Per-group summary of seed-paired differences a - b (descriptive only)."""
-    a = df[df[system_col] == method_a].set_index(by + [pair_on])[metric]
-    b = df[df[system_col] == method_b].set_index(by + [pair_on])[metric]
-    joined = pd.concat({"a": a, "b": b}, axis=1).dropna()
+                            system_col: str = "system_label",
+                            identity_col: str = "partition_sha256") -> pd.DataFrame:
+    """Per-group summary of seed-paired differences a - b (descriptive only).
+
+    Rows are paired on ``by + [pair_on]`` (scenario and seed). Each key must occur at
+    most once per system (``PairingError`` otherwise), and when ``identity_col`` is
+    present the two members of a pair must come from the same realised partition.
+    Pairs with a missing value on either side are dropped and not counted in
+    ``n_pairs`` (never imputed).
+    """
+    keys = by + [pair_on]
+    sides = {}
+    for name, system in (("a", method_a), ("b", method_b)):
+        part = df[df[system_col] == system]
+        dup = part.duplicated(keys, keep=False)
+        if dup.any():
+            raise PairingError(f"{system}: several rows for the same {keys}: "
+                               f"{part.loc[dup, keys].drop_duplicates().to_dict('records')[:5]}")
+        sides[name] = part.set_index(keys)
+    joined = pd.concat({"a": sides["a"][metric], "b": sides["b"][metric]}, axis=1)
+    if identity_col in df.columns:
+        ida, idb = sides["a"][identity_col], sides["b"][identity_col]
+        both = ida.index.intersection(idb.index)
+        bad = [k for k in both if pd.notna(ida[k]) and pd.notna(idb[k]) and ida[k] != idb[k]]
+        if bad:
+            raise PairingError(f"{method_a} vs {method_b}: paired rows come from different "
+                               f"partitions at {bad[:5]}")
+    joined = joined.dropna()
     joined["diff"] = joined["a"] - joined["b"]
     rows = []
     for key, g in joined.groupby(level=by, sort=False):

@@ -56,12 +56,12 @@ All exchanges use the Message API (`flwr.app.Message`, `RecordDict`,
 | Message type | Direction | Content |
 |---|---|---|
 | `query.identify` | server → node | `config.job-path` |
-| reply | node → server | `info`: partition-id, bank, model type, node id |
+| reply | node → server | `info`: `assigned` (bool), partition-id, node id; if assigned also bank and model type |
 | `train` (FedAvg) | server → node | `arrays`: global MLP state dict; `config`: job-path, server-round |
-| reply | node → server | `arrays`: updated MLP parameters; `metrics`: `num-examples` (FedAvg weight), train loss, local validation AP |
+| reply | node → server | `arrays`: updated MLP parameters; `metrics`: `num-examples` (FedAvg weight), train loss, AP on the shared labelled validation split |
 | `train.kd_init` | server → node | `config` only (round 0) |
 | `train.kd_distill` | server → node | `teacher` (ArrayRecord, float32 vector over the ordered proxy set) + `config` (round, proxy hash, the bank the teacher is for) |
-| KD reply | node → server | `proxy_predictions` (float32 vector), `metrics`, `info` (identity, proxy hash, model hash) |
+| KD reply | node → server | `proxy_predictions` (float32 vector), `metrics` (incl. `val-ap` on the shared labelled validation split, fit diagnostics), `info` (identity, proxy hash, model hash) |
 
 KD replies must not contain parameters (the server rejects any reply that
 carries an `arrays` record), and no KD message ever carries raw rows.
@@ -71,7 +71,12 @@ carries an `arrays` record), and no KD message ever carries raw rows.
 * A SuperNode's `node_config["partition-id"]` (0, 1, 2) selects its bank
   and model type from `job.json`. The server first sends `query.identify`
   to every node and builds `node_id → bank`; every later reply must repeat
-  the same identity or the round fails.
+  the same identity or the round fails. A node whose partition id has no
+  bank (e.g. a 10-node local SuperLink) replies `assigned=False` and is
+  ignored. Every *error* reply is fatal: Flower 1.42 reports all ClientApp
+  exceptions with the same generic code (`CLIENT_APP_RAISED_EXCEPTION`), so
+  "unassigned" is an explicit protocol field rather than an exception message
+  to pattern-match.
 * KD clients persist their model after every round to
   `<job>/federation/clients/bank_<X>/round_<r>/` (native format: XGBoost JSON,
   joblib for RF, `torch.save` for the MLP) together with validation
@@ -79,8 +84,9 @@ carries an `arrays` record), and no KD message ever carries raw rows.
   `context.state` holds a `ConfigRecord` with the round, path and SHA-256 of
   the latest checkpoint; a distillation round refuses to start if that record
   is missing, belongs to another bank, is from the wrong round, or the file
-  hash differs (`ClientStateError`). This makes persistence independent of
-  which Ray worker process happens to execute a node's message.
+  hash differs (`ClientStateError`), or the recorded path lies outside the
+  bank's own state directory. This makes persistence independent of which Ray
+  worker process happens to execute a node's message.
 
 ## Failure handling
 
@@ -98,7 +104,11 @@ carries an `arrays` record), and no KD message ever carries raw rows.
 * **OpenMP**: XGBoost and PyTorch load different `libomp` copies. Importing
   torch first makes `XGBClassifier.fit` segfault; after XGBoost has run,
   multi-threaded torch deadlocks. `heterofl/__init__.py` imports xgboost
-  first, and the MLP uses one intra-op thread.
+  first, and torch is set to one intra-op thread once, when
+  `heterofl.models.mlp` is imported (and re-applied by the entry points from
+  `models.mlp.torch_threads`), never in a model constructor.
+* **POSIX only**: the launcher uses `start_new_session` / `os.killpg` and the
+  results lock uses `fcntl.flock`; Windows is not supported.
 * **Paths with spaces**: Ray's raylet starts workers via a shell command
   built from `sys.executable`. The launcher runs the child interpreter
   through a space-free symlink to the venv (`$TMPDIR/heterofl-env-<hash>`).

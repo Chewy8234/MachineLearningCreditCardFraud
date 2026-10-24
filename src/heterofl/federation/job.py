@@ -9,6 +9,7 @@ test split is not reachable from a job.
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -53,11 +54,22 @@ class FederatedJob:
         if pids != list(range(len(self.clients))):
             raise ValueError(f"Client partition ids must be 0..K-1, got {pids}")
 
-    def client(self, partition_id: int) -> ClientSpec:
+    def find_client(self, partition_id: int) -> ClientSpec | None:
+        """The bank assigned to ``partition_id``, or ``None`` if the node has no bank."""
         for c in self.clients:
             if c.partition_id == partition_id:
                 return c
-        raise FederationError(f"No client is assigned to partition-id {partition_id}")
+        return None
+
+    def client(self, partition_id: int) -> ClientSpec:
+        spec = self.find_client(partition_id)
+        if spec is None:
+            raise FederationError(f"No client is assigned to partition-id {partition_id}")
+        return spec
+
+    @property
+    def torch_threads(self) -> int:
+        return int((self.models.get("mlp") or {}).get("torch_threads", 1))
 
     def model_type_for(self, spec: ClientSpec) -> str:
         return "mlp" if self.mode == "fedavg" else spec.model_type
@@ -71,6 +83,29 @@ class FederatedJob:
         return self.path
 
 
+JOB_FILENAME = "job.json"
+
+
+def check_job_path(path: str | Path) -> Path:
+    """Validate a ``job-path`` received in a Flower message before reading it.
+
+    The path must be absolute, name a ``job.json`` file that exists, and -- if the
+    environment variable ``HETEROFL_JOB_ROOT`` is set -- lie inside that directory.
+    This is a guard against accidental misuse, not a security boundary: the
+    simulation assumes a trusted server and trusted local files (docs/reproducibility.md).
+    """
+    p = Path(str(path))
+    if not p.is_absolute() or p.name != JOB_FILENAME:
+        raise FederationError(f"job-path must be an absolute path to {JOB_FILENAME}, got {path!r}")
+    p = p.resolve()
+    root = os.environ.get("HETEROFL_JOB_ROOT")
+    if root and not p.is_relative_to(Path(root).resolve()):
+        raise FederationError(f"job-path {p} is outside HETEROFL_JOB_ROOT={root}")
+    if not p.is_file():
+        raise FederationError(f"job-path {p} does not exist")
+    return p
+
+
 @lru_cache(maxsize=8)
 def load_job(path: str) -> FederatedJob:
-    return FederatedJob(**read_json(path))
+    return FederatedJob(**read_json(check_job_path(path)))

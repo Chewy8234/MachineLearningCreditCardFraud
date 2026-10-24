@@ -24,7 +24,8 @@ from heterofl.utils.logging import get_logger
 log = get_logger("federation.simulation")
 
 
-def run_job_in_process(job_path: str) -> None:
+def run_job_in_process(job_path: str, num_supernodes: int | None = None) -> None:
+    """Run a job; ``num_supernodes`` > number of banks adds nodes without a bank (tests)."""
     os.environ.setdefault("FLWR_TELEMETRY_ENABLED", "0")
     os.environ.setdefault("RAY_DEDUP_LOGS", "0")
     from flwr.simulation import run_simulation
@@ -34,7 +35,10 @@ def run_job_in_process(job_path: str) -> None:
     from heterofl.federation.server_app import make_server_app
 
     job = load_job(job_path)
-    total_cpus = max(int(job.num_cpus_per_client) * len(job.clients), 1)
+    n_nodes = int(num_supernodes or len(job.clients))
+    if n_nodes < len(job.clients):
+        raise ValueError(f"num_supernodes={n_nodes} < {len(job.clients)} banks")
+    total_cpus = max(int(job.num_cpus_per_client) * n_nodes, 1)
     backend_config = {
         "client_resources": {"num_cpus": int(job.num_cpus_per_client),
                              "num_gpus": float(job.num_gpus_per_client)},
@@ -42,7 +46,7 @@ def run_job_in_process(job_path: str) -> None:
                       "log_to_driver": True},
     }
     run_simulation(server_app=make_server_app(job_path), client_app=client_app,
-                   num_supernodes=len(job.clients), backend_config=backend_config)
+                   num_supernodes=n_nodes, backend_config=backend_config)
     status = read_json(Path(job.job_dir) / "server" / "status.json")
     if status.get("status") != "completed":
         raise RuntimeError(f"Federated job did not complete: {status}")
@@ -77,8 +81,14 @@ def space_free_python() -> str:
     return str(link / rel)
 
 
-def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = None) -> None:
-    """Run a job in a fresh interpreter; raise with the log tail on failure."""
+def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = None,
+                      num_supernodes: int | None = None) -> None:
+    """Run a job in a fresh interpreter; raise with the log tail on failure.
+
+    POSIX only: the child gets its own session (``start_new_session``) so that on
+    timeout or interruption the whole process group -- including Ray's workers --
+    is killed with ``os.killpg``.
+    """
     # Put this package's source root on PYTHONPATH explicitly, so the child (and
     # the Ray workers, which inherit its environment) can import heterofl even if
     # the editable-install .pth file is skipped (Python >= 3.12 ignores .pth files
@@ -90,8 +100,10 @@ def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = No
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("w") as fh:
         # own session/process group: on timeout the child AND its Ray processes are killed
-        proc = subprocess.Popen([space_free_python(), "-m", "heterofl.federation.simulation",
-                                 "--job", str(job_path)], stdout=fh, stderr=subprocess.STDOUT,
+        cmd = [space_free_python(), "-m", "heterofl.federation.simulation", "--job", str(job_path)]
+        if num_supernodes:
+            cmd += ["--num-supernodes", str(int(num_supernodes))]
+        proc = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT,
                                 env=env, start_new_session=True)
         try:
             proc.wait(timeout=timeout)
@@ -112,11 +124,13 @@ def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = No
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--job", required=True, help="path to job.json")
+    parser.add_argument("--num-supernodes", type=int, default=None,
+                        help="default: one per bank; more adds nodes without a bank (testing)")
     args = parser.parse_args(argv)
     from heterofl.utils.logging import setup_logging
 
     setup_logging()
-    run_job_in_process(str(Path(args.job).resolve()))
+    run_job_in_process(str(Path(args.job).resolve()), args.num_supernodes)
     return 0
 
 

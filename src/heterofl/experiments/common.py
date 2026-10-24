@@ -36,6 +36,8 @@ class RunContext:
     out_dir: Path
     run_id: str
     variant: str = "primary"            # "primary" or the ablation name
+    #: run identity (``heterofl.experiments.identity.run_identity``); None for debug jobs
+    identity: dict | None = None
     rows: list[dict] = field(default_factory=list)
     evaluations: dict[str, dict] = field(default_factory=dict)
     runtime: dict = field(default_factory=dict)
@@ -71,14 +73,17 @@ def timed_predict(model: FraudModel, X: np.ndarray) -> tuple[np.ndarray, float]:
 def record_system(ctx: RunContext, *, system: str, label: str, model_type: str,
                   p_val: np.ndarray, p_test: np.ndarray, extra: dict | None = None) -> dict:
     """Evaluate one system (threshold from validation) and store predictions + metrics."""
-    Xv_y = ctx.data.validation()[1]
-    y_test = ctx.data.test()[1]
+    y_val = ctx.data.validation_labels()
+    y_test = ctx.data.test_labels()
     rule, fprs = ctx.eval_cfg()
-    ev = evaluate_system(Xv_y, p_val, y_test, p_test, rule=rule, fpr_targets=fprs)
+    ev = evaluate_system(y_val, p_val, y_test, p_test, rule=rule, fpr_targets=fprs)
     save_npz(ctx.out_dir / "predictions" / f"{system}.npz", p_val=np.asarray(p_val),
-             p_test=np.asarray(p_test), y_val=Xv_y, y_test=y_test)
+             p_test=np.asarray(p_test), y_val=y_val, y_test=y_test)
+    ident = ctx.identity or {}
     row = {"run_id": ctx.run_id, "profile": ctx.cfg["profile"], "seed": ctx.seed,
            "scenario": ctx.scenario, "method": ctx.method, "variant": ctx.variant,
+           "config_hash": ident.get("config_hash"),
+           "partition_sha256": ident.get("partition_sha256"),
            "system": system, "system_label": label, "model_type": model_type,
            **(extra or {}), **flatten_evaluation(ev)}
     ctx.rows.append(row)
