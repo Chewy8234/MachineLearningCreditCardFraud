@@ -1,0 +1,4 @@
+# Dataset is too large for GitHub (144 MB); kagglehub downloads it
+creditcard.csv
+__pycache__/
+.venv/
