@@ -1,0 +1,57 @@
+# Step 1 on NRP: ONE unit (index 0 = seed 42 / iid, no ablations) with the ORIGINAL setting
+# (client_num_cpus=4), to validate the NRP environment against results/full from the laptop.
+# Edit: image. Resources are provisional: CPU 12 so the pod can host 3 banks x 4 cores; RAM 24Gi to be measured.
+# Guaranteed QoS (requests == limits); NRP requires limits <= 1.2 x requests.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: heterofl-validate
+  namespace: fgcu-vinodahuja-aml
+spec:
+  completions: 1
+  parallelism: 1
+  completionMode: Indexed
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 259200
+  template:
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 60
+      priorityClassName: opportunistic
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: feature.node.kubernetes.io/pci-10de.present
+                    operator: NotIn
+                    values: ["true"]
+      containers:
+        - name: unit
+          image: gitlab-registry.nrp-nautilus.io/REPLACE_GROUP/REPLACE_PROJECT:REPLACE_TAG
+          workingDir: /app
+          command: ["python", "deploy/run_unit.py", "--config", "configs/paper.yaml", "--", "--no-ablations"]
+          env:
+            - {name: RUN_TAG, value: "nrp-validate-cpu4"}
+            - {name: CLIENT_NUM_CPUS, value: "4"}
+            - {name: OMP_NUM_THREADS, value: "12"}
+            - {name: OPENBLAS_NUM_THREADS, value: "12"}
+            - {name: MKL_NUM_THREADS, value: "12"}
+            - {name: IMAGE_REF, value: "REPLACE_GROUP/REPLACE_PROJECT:REPLACE_TAG"}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+          resources:
+            requests: {cpu: "12", memory: 24Gi, ephemeral-storage: 8Gi}
+            limits: {cpu: "12", memory: 24Gi, ephemeral-storage: 8Gi}
+          volumeMounts:
+            - {name: store, mountPath: /data/raw, subPath: raw, readOnly: true}
+            - {name: store, mountPath: /results, subPath: results}
+            - {name: scratch, mountPath: /scratch}
+            - {name: shm, mountPath: /dev/shm}
+      volumes:
+        - name: store
+          persistentVolumeClaim: {claimName: heterofl-data}
+        - name: scratch
+          emptyDir: {sizeLimit: 4Gi}
+        - name: shm
+          emptyDir: {medium: Memory, sizeLimit: 2Gi}

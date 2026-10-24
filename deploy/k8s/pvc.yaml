@@ -1,0 +1,14 @@
+# One shared CephFS volume: raw dataset (read-only use) + results (each pod writes only its own unit_* directory).
+# rook-cephfs is ReadWriteMany; RBD classes are ReadWriteOnce and cannot be shared by parallel pods.
+# Never pip/conda-install onto CephFS (prohibited by NRP) -- the image already contains the environment.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: heterofl-data
+  namespace: fgcu-vinodahuja-aml
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: rook-cephfs
+  resources:
+    requests:
+      storage: 10Gi   # raw CSV 144 MB + ~1.1 GB per full result set; confirm quota with `kubectl describe quota`

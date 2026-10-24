@@ -1,0 +1,12 @@
+# Copy to the root of a project on gitlab.nrp-nautilus.io (verbatim from the NRP docs, "Building in GitLab"),
+# with the Dockerfile at deploy/Dockerfile. Image: $CI_REGISTRY_IMAGE:<sha>.
+image: ghcr.io/osscontainertools/kaniko:debug
+stages:
+  - build-and-push
+build-and-push-job:
+  stage: build-and-push
+  variables:
+    GODEBUG: 'http2client=0'
+  script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --cache=true --push-retry=10 --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/deploy/Dockerfile --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA

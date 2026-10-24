@@ -1,0 +1,13 @@
+# Sensitivity analysis: naturally sampled (non-stratified) proxy/reference set.
+# Everything else is identical to paper.yaml; results go to their own directory.
+#   python -m heterofl.experiments.runner --config configs/paper_random_proxy.yaml
+base_config: paper.yaml
+profile: full_random_proxy
+results_dir: results/full_random_proxy
+split:
+  proxy_sampling: random
+methods: [local, ensemble, fedavg, heterogeneous_kd]
+scenarios:
+  mild_non_iid: __remove__
+ablations:
+  enabled: false

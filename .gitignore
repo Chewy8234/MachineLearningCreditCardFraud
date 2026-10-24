@@ -2,3 +2,20 @@
 creditcard.csv
 __pycache__/
 .venv/
+
+# Generated data artifacts (rebuilt deterministically by the runner)
+data/raw/*
+data/processed/*
+data/partitions/*
+!data/**/.gitkeep
+
+# Experiment outputs
+results/*
+!results/.gitkeep
+
+# Tooling
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+*.fab
