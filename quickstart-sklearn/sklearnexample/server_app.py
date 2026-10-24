@@ -1,15 +1,12 @@
 """sklearnexample: A Flower / sklearn app."""
 
-import joblib
+from pathlib import Path
+
+import pandas as pd
 from flwr.app import ArrayRecord, Context
 from flwr.serverapp import Grid, ServerApp
-from flwr.serverapp.strategy import FedAvg
 
-from sklearnexample.task import (
-    create_log_reg_and_instantiate_parameters,
-    get_model_params,
-    set_model_params,
-)
+from sklearnexample.models import initial_arrays, make_strategy, save_global
 
 # Create ServerApp
 app = ServerApp()
@@ -21,17 +18,16 @@ def main(grid: Grid, context: Context) -> None:
 
     # Read run config
     num_rounds: int = context.run_config["num-server-rounds"]
+    model_name: str = context.run_config["model"]
+    min_nodes: int = context.run_config["min-available-clients"]
 
-    # Create LogisticRegression Model
-    penalty = context.run_config["penalty"]
-    model = create_log_reg_and_instantiate_parameters(penalty)
-    # Construct ArrayRecord representation
-    arrays = ArrayRecord(get_model_params(model))
+    # Global model the banks start from
+    arrays = ArrayRecord(initial_arrays(model_name, context.run_config["penalty"]))
 
-    # Initialize FedAvg strategy
-    strategy = FedAvg(fraction_train=1.0, fraction_evaluate=1.0)
+    # FedAvg for weight-based models, tree-merging strategies for XGBoost and RF
+    strategy = make_strategy(model_name, min_nodes)
 
-    # Start strategy, run FedAvg for `num_rounds`
+    # Start strategy, run for `num_rounds`
     result = strategy.start(
         grid=grid,
         initial_arrays=arrays,
@@ -40,6 +36,15 @@ def main(grid: Grid, context: Context) -> None:
 
     # Save final model parameters
     print("\nSaving final model to disk...")
-    ndarrays = result.arrays.to_numpy_ndarrays()
-    set_model_params(model, ndarrays)
-    joblib.dump(model, "logreg_model.pkl")
+    path = save_global(model_name, result.arrays.to_numpy_ndarrays())
+    print(f"Saved {path}")
+
+    # Test metrics per round (averaged over banks, weighted by test size)
+    rows = [
+        {"round": rnd, **dict(metrics)}
+        for rnd, metrics in result.evaluate_metrics_clientapp.items()
+    ]
+    Path("results").mkdir(exist_ok=True)
+    out = Path("results") / f"federated_{model_name}.csv"
+    pd.DataFrame(rows).to_csv(out, index=False)
+    print(f"Saved {out}")

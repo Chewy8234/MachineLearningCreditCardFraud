@@ -2,3 +2,6 @@
 creditcard.csv
 __pycache__/
 .venv/
+
+# Trained models written by each run
+quickstart-sklearn/*_model.*

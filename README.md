@@ -4,6 +4,37 @@ dataset: [Iris]
 framework: [scikit-learn]
 ---
 
+# Federated Credit Card Fraud Detection
+
+## Reproducing the experiments
+
+**Data:** [Kaggle `mlg-ulb/creditcardfraud`](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud), `creditcard.csv`
+(284,807 transactions, 492 fraud). Place it in the repo root (it is gitignored, 144 MB).
+SHA-256: `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89`
+
+**Environment:** Python 3.11.0, exact package versions in `quickstart-sklearn/requirements.txt`.
+
+```bash
+cd quickstart-sklearn
+pip install -r requirements.txt
+pip install -e .
+python baselines.py   # Exp. 1 local-only + Exp. 2 centralized -> results/
+
+# Exp. 3 homogeneous federated learning, one run per model -> results/federated_<model>.csv
+flwr run . --run-config "model='logreg' num-server-rounds=25"    # FedAvg
+flwr run . --run-config "model='mlp' num-server-rounds=25"       # FedAvg
+flwr run . --run-config "model='xgboost' num-server-rounds=100"  # FedXgbBagging, 1 tree per bank per round
+flwr run . --run-config "model='rf' num-server-rounds=1"         # federated forest, 200 trees per bank pooled
+```
+
+**Protocol:** rows are shuffled once (seed 42) and split evenly into 3 banks. Each bank is split
+70/10/20 into train/validation/test, stratified by `Class`. Models train on train; the fraud
+decision threshold is chosen to maximize F1 on validation; test is used only for the reported
+scores. Features: V1-V28 plus log(1 + Amount); `Time` is dropped. All randomness uses seed 42,
+and reruns give identical results.
+
+---
+
 # Federated Learning with scikit-learn and Flower (Quickstart Example)
 
 This example of Flower uses `scikit-learn`'s `LogisticRegression` model to train a federated learning system on

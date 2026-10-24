@@ -1,0 +1,7 @@
+# Exact versions used to produce the reported results (Python 3.11.0)
+flwr[simulation]==1.26.1
+scikit-learn==1.9.1
+xgboost==3.2.0
+pandas==3.0.1
+numpy==2.4.2
+kagglehub[pandas-datasets]==1.0.3
