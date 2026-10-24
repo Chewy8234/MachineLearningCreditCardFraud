@@ -20,17 +20,22 @@ pip install -r requirements.txt
 pip install -e .
 python baselines.py   # Exp. 1 local-only + Exp. 2 centralized -> results/
 
-# Exp. 3 homogeneous federated learning, one run per model -> results/federated_<model>.csv
-flwr run . --run-config "model='logreg' num-server-rounds=25"    # FedAvg
-flwr run . --run-config "model='mlp' num-server-rounds=25"       # FedAvg
-flwr run . --run-config "model='xgboost' num-server-rounds=100"  # FedXgbBagging, 1 tree per bank per round
-flwr run . --run-config "model='rf' num-server-rounds=1"         # federated forest, 200 trees per bank pooled
+# Exp. 3 + 4: every federated run uses 100 rounds -> results/federated_<model>.csv
+flwr run . --run-config "model='logreg'"     # FedAvg
+flwr run . --run-config "model='mlp'"        # FedAvg
+flwr run . --run-config "model='xgboost'"    # FedXgbBagging, 1 new tree per bank per round
+flwr run . --run-config "model='rf'"         # federated forest, 2 new trees per bank per round
+flwr run . --run-config "model='committee'"  # Exp. 4: bank 0 XGBoost, bank 1 RF, bank 2 MLP,
+                                             # FedDistill on class-average logits (kd-alpha 0.5)
+
+python summary.py     # prints every result table
 ```
 
 **Protocol:** rows are shuffled once (seed 42) and split evenly into 3 banks. Each bank is split
 70/10/20 into train/validation/test, stratified by `Class`. Models train on train; the fraud
 decision threshold is chosen to maximize F1 on validation; test is used only for the reported
-scores. Features: V1-V28 plus log(1 + Amount); `Time` is dropped. All randomness uses seed 42,
+scores. For federated runs, the reported round is the one with the best mean validation
+PR-AUC, so test data never influences which round is reported. Features: V1-V28 plus log(1 + Amount); `Time` is dropped. All randomness uses seed 42,
 and reruns give identical results.
 
 ---

@@ -4,7 +4,8 @@ Every bank trains the same model type; only how the server combines them differs
   logreg   - FedAvg over coefficients
   mlp      - FedAvg over layer weights
   xgboost  - FedXgbBagging: each bank adds trees to one shared booster per round
-  rf       - federated forest: the banks' trees are pooled into one forest
+  rf       - federated forest: each round every bank adds new trees to one forest
+The heterogeneous committee (experiment 4) lives in committee.py.
 """
 
 import pickle
@@ -15,6 +16,7 @@ import numpy as np
 import xgboost as xgb
 from flwr.app import ArrayRecord, Message, MetricRecord
 from flwr.serverapp.strategy import FedAvg, FedXgbBagging
+from flwr.serverapp.strategy.strategy_utils import aggregate_metricrecords
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 
@@ -101,21 +103,52 @@ def merge_forests(forests: list[RandomForestClassifier]) -> RandomForestClassifi
     return merged
 
 
+def in_bank_order(replies: Iterable[Message]) -> list[Message]:
+    """Sort replies by bank id so aggregation doesn't depend on arrival order."""
+    return sorted(
+        replies,
+        key=lambda m: m.content["metrics"]["bank"] if m.has_content() else -1,
+    )
+
+
+class OrderedFedAvg(FedAvg):
+    def aggregate_train(self, server_round, replies):
+        return super().aggregate_train(server_round, in_bank_order(replies))
+
+
+class OrderedFedXgbBagging(FedXgbBagging):
+    # Tree order changes the booster's floating-point sums, so fix it
+    def aggregate_train(self, server_round, replies):
+        return super().aggregate_train(server_round, in_bank_order(replies))
+
+
 class FedForest(FedAvg):
-    """Federated forest: concatenate the trees each bank sends, never average."""
+    """Federated forest: each round, every bank's new trees join the global forest."""
+
+    current_forest: bytes = b""
+
+    def configure_train(self, server_round, arrays, config, grid):
+        # Keep track of the global forest the banks are growing
+        self.current_forest = _to_bytes(arrays.to_numpy_ndarrays())
+        return super().configure_train(server_round, arrays, config, grid)
 
     def aggregate_train(
         self, server_round: int, replies: Iterable[Message]
     ) -> tuple[ArrayRecord | None, MetricRecord | None]:
-        valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
+        valid_replies, _ = self._check_and_log_replies(
+            in_bank_order(replies), is_train=True
+        )
         if not valid_replies:
             return None, None
         contents = [msg.content for msg in valid_replies]
         forests = [
             pickle.loads(_to_bytes(c["arrays"].to_numpy_ndarrays())) for c in contents
         ]
+        if self.current_forest != b"":
+            forests.insert(0, pickle.loads(self.current_forest))
         merged = merge_forests(forests)
-        arrays = ArrayRecord(_to_array(pickle.dumps(merged)))
+        self.current_forest = pickle.dumps(merged)
+        arrays = ArrayRecord(_to_array(self.current_forest))
         metrics = self.train_metrics_aggr_fn(contents, self.weighted_by_key)
         return arrays, metrics
 
@@ -129,27 +162,53 @@ def initial_arrays(name: str, penalty: str) -> list[np.ndarray]:
         return get_model_params(create_log_reg_and_instantiate_parameters(penalty))
     if name == "mlp":
         return initial_mlp_params()
+    if name == "committee":
+        return [np.array([])]  # no committee knowledge before round 1
     # Tree models start empty; the banks grow the first trees
     return _to_array(b"")
 
 
+def aggregate_with_per_bank(records, weighting_metric_name: str) -> MetricRecord:
+    """Weighted mean over banks, plus each bank's own value as bank<id>_<metric>."""
+    aggregated = aggregate_metricrecords(records, weighting_metric_name)
+    del aggregated["bank"]  # averaging bank ids is meaningless
+    for record in records:
+        metrics = next(iter(record.metric_records.values()))
+        bank = int(metrics["bank"])
+        for key, value in metrics.items():
+            if key not in ("bank", weighting_metric_name):
+                aggregated[f"bank{bank}_{key}"] = value
+    return aggregated
+
+
 def make_strategy(name: str, min_nodes: int) -> FedAvg:
+    from sklearnexample.committee import FedDistill
+
     kwargs = dict(
         fraction_train=1.0,
         fraction_evaluate=1.0,
         min_train_nodes=min_nodes,
         min_evaluate_nodes=min_nodes,
         min_available_nodes=min_nodes,
+        train_metrics_aggr_fn=aggregate_with_per_bank,
+        evaluate_metrics_aggr_fn=aggregate_with_per_bank,
     )
+    if name == "committee":
+        return FedDistill(**kwargs)
     if name == "xgboost":
-        return FedXgbBagging(**kwargs)
+        return OrderedFedXgbBagging(**kwargs)
     if name == "rf":
         return FedForest(**kwargs)
-    return FedAvg(**kwargs)
+    return OrderedFedAvg(**kwargs)
 
 
 def train_local(
-    name: str, ndarrays: list[np.ndarray], X_train, y_train, run_config
+    name: str,
+    ndarrays: list[np.ndarray],
+    X_train,
+    y_train,
+    run_config,
+    server_round: int,
 ) -> tuple[list[np.ndarray], ProbaFn]:
     """Train on one bank's data starting from the global model.
 
@@ -190,13 +249,15 @@ def train_local(
         return _to_array(new_tree.save_raw("json")), proba
 
     if name == "rf":
+        # Grow a few new trees per round; a new seed each round gives new trees
         model = RandomForestClassifier(
-            n_estimators=int(run_config["rf-trees-per-bank"]),
+            n_estimators=int(run_config["rf-trees-per-round"]),
             class_weight="balanced_subsample",
             n_jobs=-1,
-            random_state=SEED,
+            random_state=SEED + server_round,
         )
         model.fit(X_train, y_train)
+        # Send only the new trees; the server adds them to the global forest
         return _to_array(pickle.dumps(model)), lambda X: model.predict_proba(X)[:, 1]
 
     raise ValueError(f"Unknown model '{name}'")

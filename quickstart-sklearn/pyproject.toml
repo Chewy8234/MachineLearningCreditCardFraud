@@ -26,10 +26,17 @@ clientapp = "sklearnexample.client_app:app"
 
 [tool.flwr.app.config]
 penalty = "l2"
-num-server-rounds = 25
+# Every experiment runs this many rounds; the reported round is the one with
+# the best validation PR-AUC
+num-server-rounds = 100
 min-available-clients = 3
 data-path = "../creditcard.csv"
-# Which homogeneous FL experiment to run: "logreg", "mlp", "xgboost" or "rf"
+# Which experiment to run: "logreg", "mlp", "xgboost", "rf" (homogeneous FL)
+# or "committee" (heterogeneous committee)
 model = "logreg"
 local-epochs = 1
-rf-trees-per-bank = 200
+# Random Forest: new trees each bank adds per round (100 rounds x 2 = 200 per bank)
+rf-trees-per-round = 2
+# Experiment 4: model type per bank (bank 0, 1, 2) and distillation strength
+committee-models = "xgboost,rf,mlp"
+kd-alpha = 0.5
