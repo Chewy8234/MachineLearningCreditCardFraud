@@ -31,6 +31,7 @@ from heterofl.evaluation.statistics import (
     paired_seed_differences,
     summarize_across_seeds,
 )
+from heterofl.experiments.common import committee_composition
 from heterofl.utils.io import load_npz, read_json, write_csv
 from heterofl.utils.logging import get_logger
 
@@ -39,7 +40,7 @@ log = get_logger("report")
 MODEL_SHORT = {"xgboost": "XGB", "random_forest": "RF", "mlp": "MLP", "committee": "committee"}
 SYSTEM_ORDER = ["bank_A", "bank_B", "bank_C", "centralized_xgboost", "centralized_random_forest",
                 "centralized_mlp", "ensemble_equal", "ensemble_validation_ap", "fedavg_global",
-                "kd_bank_A", "kd_bank_B", "kd_bank_C", "kd_committee"]
+                "fedxgb_global", "kd_bank_A", "kd_bank_B", "kd_bank_C", "kd_committee"]
 METRICS = ["test_average_precision", "test_pr_auc_trapezoid", "test_roc_auc",
            "test_at_val_threshold_precision", "test_at_val_threshold_recall",
            "test_at_val_threshold_f1", "test_at_val_threshold_balanced_accuracy",
@@ -50,7 +51,8 @@ METRICS = ["test_average_precision", "test_pr_auc_trapezoid", "test_roc_auc",
            "train_seconds", "test_inference_seconds", "communication_bytes"]
 COMPARISONS = [("kd_committee", "ensemble_equal"), ("kd_committee", "fedavg_global"),
                ("ensemble_equal", "fedavg_global"), ("kd_bank_A", "bank_A"),
-               ("kd_bank_B", "bank_B"), ("kd_bank_C", "bank_C")]
+               ("kd_bank_B", "bank_B"), ("kd_bank_C", "bank_C"),
+               ("kd_committee", "fedxgb_global"), ("ensemble_equal", "fedxgb_global")]
 
 
 # --------------------------------------------------------------------------- collection
@@ -64,6 +66,8 @@ def _family(row) -> str:
         return "Ensemble (no KD)"
     if s == "fedavg_global":
         return "FedAvg"
+    if s == "fedxgb_global":
+        return "Fed. XGB bagging"
     if s == "kd_committee":
         return "KD committee"
     return "KD (per bank)"
@@ -81,6 +85,8 @@ def _short(row) -> str:
         return "Ensemble (val-AP wtd)"
     if s == "fedavg_global":
         return "FedAvg MLP"
+    if s == "fedxgb_global":
+        return "Fed. XGB bagging"
     if s == "kd_committee":
         return "KD committee"
     if s.startswith("kd_bank_"):
@@ -196,7 +202,24 @@ def _sort_systems(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------- tables
-def table1(root: Path, parts: pd.DataFrame, scen: list[str], labels: dict, tdir: Path) -> pd.DataFrame:
+def _bank_headers(cfg: dict | None, banks: list[str]) -> list[str]:
+    models = {c["bank"]: c["model"] for c in (cfg or {}).get("clients", [])}
+    return [f"Bank {b} ({MODEL_SHORT.get(models[b], models[b])})" if b in models else f"Bank {b}"
+            for b in banks]
+
+
+def _lc(kind: str) -> str:
+    """``Homogeneous 3xMLP`` -> ``homogeneous 3xMLP`` (mid-sentence use)."""
+    return kind[:1].lower() + kind[1:]
+
+
+def _composition(cfg: dict | None) -> str:
+    clients = (cfg or {}).get("clients")
+    return committee_composition(clients) if clients else "Heterogeneous"
+
+
+def table1(root: Path, parts: pd.DataFrame, scen: list[str], labels: dict, tdir: Path,
+           cfg: dict | None = None) -> pd.DataFrame:
     split = read_json(root / "split_manifest.json") if (root / "split_manifest.json").is_file() else None
     rows = []
     if split:
@@ -238,7 +261,8 @@ def table1(root: Path, parts: pd.DataFrame, scen: list[str], labels: dict, tdir:
             tex_rows.append([escape(labels.get(sc, sc)) if i == 0 else "", str(seed), *cells,
                              f"{h['fraud_rate_cv']:.2f}", f"{h['largest_client_share']:.2f}"])
     if tex_rows:
-        tex = latex_table(tex_rows, ["Scenario", "Seed", "Bank A (XGB)", "Bank B (RF)", "Bank C (MLP)",
+        banks = sorted(full["bank"].unique())
+        tex = latex_table(tex_rows, ["Scenario", "Seed", *_bank_headers(cfg, banks),
                                      "CV(fraud rate)", "Max share"],
                           caption=("Client partitions as realised, shown as ``transactions / frauds "
                                    "(fraud rate)''. CV is the coefficient of variation of the three "
@@ -278,7 +302,7 @@ def _group_table(summ: pd.DataFrame, scen: list[str], labels: dict, cols: list[t
 
 
 def tables_main(summ: pd.DataFrame, scen_primary: list[str], scen_all: list[str], labels: dict,
-                tdir: Path) -> None:
+                tdir: Path, kind: str = "Heterogeneous") -> None:
     n_lo = int(summ["test_average_precision_n"].min()) if not summ.empty else 0
     n_hi = int(summ["test_average_precision_n"].max()) if not summ.empty else 0
     n_txt = f"{n_hi}" if n_lo == n_hi else f"{n_lo}--{n_hi} (see the CSV for per-cell n)"
@@ -294,17 +318,17 @@ def tables_main(summ: pd.DataFrame, scen_primary: list[str], scen_all: list[str]
                   ("test_roc_auc", "ROC-AUC"), ("test_at_val_threshold_precision", "Prec."),
                   ("test_at_val_threshold_recall", "Rec."), ("test_at_val_threshold_f1", "F1"),
                   ("test_recall_at_fpr_0.001", "Rec@FPR=0.1\\%")],
-                 lambda s: s.startswith(("centralized", "fedavg", "ensemble_equal", "kd_")),
-                 f"Centralized reference, FedAvg, heterogeneous ensemble (no KD) and heterogeneous "
-                 f"KD, test split, {ms}. AP = average precision (step-wise), PR-AUC (trap.) = "
+                 lambda s: s.startswith(("centralized", "fedavg", "fedxgb", "ensemble_equal", "kd_")),
+                 f"Centralized reference, homogeneous FL, {_lc(kind)} ensemble (no KD) and "
+                 f"{_lc(kind)} KD, test split, {ms}. AP = average precision (step-wise), PR-AUC (trap.) = "
                  "trapezoidal area. Threshold-dependent metrics use the validation-selected "
                  "threshold (max F1). Bold: best per scenario among federated/local systems; the "
                  "centralized rows are a non-federated reference and are not bolded.",
                  "tab:main", tdir, "table3_main")
 
     rows = []
-    systems = ["bank_A", "bank_B", "bank_C", "ensemble_equal", "fedavg_global", "kd_bank_A",
-               "kd_bank_B", "kd_bank_C", "kd_committee", "centralized_xgboost"]
+    systems = ["bank_A", "bank_B", "bank_C", "ensemble_equal", "fedavg_global", "fedxgb_global",
+               "kd_bank_A", "kd_bank_B", "kd_bank_C", "kd_committee", "centralized_xgboost"]
     for s in systems:
         d = summ[summ["system"] == s]
         if d.empty:
@@ -335,7 +359,8 @@ def tables_main(summ: pd.DataFrame, scen_primary: list[str], scen_all: list[str]
                  exclude_from_bold=lambda s: True)
 
 
-def table5(prim: pd.DataFrame, scen: list[str], labels: dict, tdir: Path) -> pd.DataFrame:
+def table5(prim: pd.DataFrame, scen: list[str], labels: dict, tdir: Path,
+           kind: str = "Heterogeneous") -> pd.DataFrame:
     rows, out = [], []
     for sc in scen:
         for bank in ("A", "B", "C"):
@@ -364,7 +389,7 @@ def table5(prim: pd.DataFrame, scen: list[str], labels: dict, tdir: Path) -> pd.
     if rows:
         tex = latex_table(rows, ["Scenario", "Bank", "Before (local)", "After (KD)", "$\\Delta$ AP",
                                  "Seeds improved"],
-                          caption="Per-bank test AP before (local-only) and after heterogeneous "
+                          caption=f"Per-bank test AP before (local-only) and after {_lc(kind)} "
                                   "KD; $\\Delta$ is the seed-paired difference (mean $\\pm$ std). "
                                   "Degradations are reported as observed.",
                           label="tab:perbank", align="llrrrr",
@@ -373,7 +398,8 @@ def table5(prim: pd.DataFrame, scen: list[str], labels: dict, tdir: Path) -> pd.
     return df
 
 
-def table6(mdf: pd.DataFrame, parts: pd.DataFrame, tdir: Path) -> pd.DataFrame:
+def table6(mdf: pd.DataFrame, parts: pd.DataFrame, tdir: Path,
+           kind: str = "Heterogeneous") -> pd.DataFrame:
     prim = mdf[(mdf["variant"] == "primary") & (mdf["kd_phase"].fillna("after") != "before")]
     rows = []
     for (seed, sc, method), g in prim.groupby(["seed", "scenario", "method"]):
@@ -387,6 +413,8 @@ def table6(mdf: pd.DataFrame, parts: pd.DataFrame, tdir: Path) -> pd.DataFrame:
             comm = g["communication_bytes"].fillna(0).sum() if method != "centralized" else np.nan
             wall = (g["federation_wall_seconds"].iloc[0]
                     if "federation_wall_seconds" in g and method == "fedavg" else np.nan)
+            if method == "fedxgb_bagging":
+                comm = g["communication_bytes"].sum()
         rows.append({"seed": seed, "scenario": sc, "method": method, "train_seconds": train,
                      "test_inference_seconds": infer, "communication_mb": comm / 1e6,
                      "federation_wall_seconds": wall})
@@ -396,11 +424,12 @@ def table6(mdf: pd.DataFrame, parts: pd.DataFrame, tdir: Path) -> pd.DataFrame:
     labels = {"local": ("Local (3 banks)", "Local"),
               "centralized": ("Centralized (3 models, ref.)", "Centralized (ref.)"),
               "ensemble": ("Ensemble (no KD)", "Ensemble (no KD)"),
-              "fedavg": ("FedAvg", "FedAvg"), "heterogeneous_kd": ("Heterogeneous KD", "KD committee")}
+              "fedavg": ("FedAvg", "FedAvg"), "heterogeneous_kd": (f"{kind} KD", "KD committee"),
+              "fedxgb_bagging": ("Federated XGBoost bagging", "Fed. XGB bagging")}
     num = ["train_seconds", "test_inference_seconds", "communication_mb", "federation_wall_seconds"]
     agg = df.groupby("method")[num].agg(["mean", "std"])
     out = []
-    for m in ["local", "centralized", "ensemble", "fedavg", "heterogeneous_kd"]:
+    for m in ["local", "centralized", "ensemble", "fedavg", "fedxgb_bagging", "heterogeneous_kd"]:
         if m not in agg.index:
             continue
         a = agg.loc[m]
@@ -504,7 +533,8 @@ def bootstrap_stats(prim: pd.DataFrame, cfg: dict | None, rdir: Path) -> tuple[p
         if not preds:
             continue
         y = next(iter(preds.values()))["y_test"]
-        for s in ["fedavg_global", "ensemble_equal", "kd_committee", "bank_A", "bank_B", "bank_C",
+        for s in ["fedavg_global", "fedxgb_global", "ensemble_equal", "kd_committee", "bank_A",
+                  "bank_B", "bank_C",
                   "kd_bank_A", "kd_bank_B", "kd_bank_C", "centralized_xgboost"]:
             if s in preds:
                 ci = bootstrap_ap_ci(y, preds[s]["p_test"], B, conf, bseed)
@@ -522,7 +552,7 @@ def bootstrap_stats(prim: pd.DataFrame, cfg: dict | None, rdir: Path) -> tuple[p
 
 
 # --------------------------------------------------------------------------- figures data
-def heterogeneity_series(prim: pd.DataFrame) -> pd.DataFrame:
+def heterogeneity_series(prim: pd.DataFrame, kind: str = "Heterogeneous") -> pd.DataFrame:
     rows = []
     for sc, g in prim.groupby("scenario"):
         def add(key, label, vals):
@@ -530,9 +560,11 @@ def heterogeneity_series(prim: pd.DataFrame) -> pd.DataFrame:
             rows.append({"scenario": sc, "series": key, "label": label, "mean": v.mean() if len(v) else np.nan,
                          "std": v.std(ddof=1) if len(v) > 1 else np.nan, "n": len(v)})
         for key, label in [("fedavg_global", "FedAvg (homogeneous MLP)"),
-                           ("kd_committee", "Heterogeneous KD committee")]:
-            add(key, label, g[g["system"] == key]["test_average_precision"])
-        add("ensemble", "Heterogeneous ensemble (no KD)",
+                           ("fedxgb_global", "Federated XGBoost bagging"),
+                           ("kd_committee", f"{kind} KD committee")]:
+            if (g["system"] == key).any():
+                add(key, label, g[g["system"] == key]["test_average_precision"])
+        add("ensemble", f"{kind} ensemble (no KD)",
             g[g["system"] == "ensemble_equal"]["test_average_precision"])
         add("kd_bank_mean", "KD, mean of bank models",
             g[g["system"].str.match(r"kd_bank_[A-Z]$")].groupby("seed")["test_average_precision"].mean())
@@ -545,6 +577,7 @@ def curve_data(prim: pd.DataFrame, seed: int, scen: list[str]) -> dict:
     out = {}
     want = [("centralized_xgboost", "Centralized (ref.)", "Centralized XGB (ref.)"),
             ("fedavg_global", "FedAvg", "FedAvg MLP"),
+            ("fedxgb_global", "Fed. XGB bagging", "Fed. XGB bagging"),
             ("ensemble_equal", "Ensemble (no KD)", "Ensemble (no KD)"),
             ("kd_committee", "KD committee", "KD committee")]
     for sc in scen:
@@ -604,10 +637,11 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
         not p.empty for p in pairs) else pd.DataFrame()
     write_csv(rdir / "paired_seed_differences.csv", pairs)
 
-    hdf = table1(root, parts, all_scen, labels, tdir)
-    tables_main(summ, prim_scen, all_scen, labels, tdir)
-    t5 = table5(prim, all_scen, labels, tdir)
-    cost = table6(mdf, parts, tdir)
+    kind = _composition(cfg)
+    hdf = table1(root, parts, all_scen, labels, tdir, cfg)
+    tables_main(summ, prim_scen, all_scen, labels, tdir, kind)
+    t5 = table5(prim, all_scen, labels, tdir, kind)
+    cost = table6(mdf, parts, tdir, kind)
     abl = table_ablations(mdf, prim_scen, labels, tdir)
     ci, diff = bootstrap_stats(prim, cfg, rdir)
 
@@ -615,7 +649,7 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
     figs["fig1"] = viz.fig_partitions(parts, all_scen, labels, fdir, banner)
     figs["fig2"] = viz.fig_ap_comparison(summ[summ["system"].isin(SYSTEM_ORDER)], prim_scen, labels,
                                          fdir, banner)
-    het = heterogeneity_series(prim)
+    het = heterogeneity_series(prim, kind)
     write_csv(fdir / "fig3_data.csv", het)
     figs["fig3"] = viz.fig_heterogeneity(het, all_scen, labels, fdir, banner)
     figs["fig4"] = viz.fig_rounds(rounds[rounds["variant"] == "primary"] if not rounds.empty else rounds,
@@ -626,7 +660,7 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
     cd = curve_data(prim, cseed, prim_scen)
     figs["fig5"] = viz.fig_curves(cd, prim_scen, labels, fdir, "pr", cseed, banner)
     figs["fig6"] = viz.fig_curves(cd, prim_scen, labels, fdir, "roc", cseed, banner)
-    figs["fig7"] = viz.fig_before_after(t5, all_scen, labels, fdir, banner)
+    figs["fig7"] = viz.fig_before_after(t5, all_scen, labels, fdir, banner, kind)
     figs["fig8"] = viz.fig_cost(cost, fdir, banner)
 
     _summary_md(root, rdir, cfg, status, summ, pairs, diff, t5, abl, hdf, figs, publishable,

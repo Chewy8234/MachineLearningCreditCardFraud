@@ -1,5 +1,9 @@
 """Experiment 5 -- proposed heterogeneous federated knowledge distillation.
 
+The method id stays ``heterogeneous_kd`` for every committee composition: the
+protocol is the same whether the banks' model families differ (proposed) or are
+all identical (homogeneous KD baselines, ``configs/homog_*.yaml``).
+
 Runs the Flower KD federation (``HeterogeneousKDStrategy``), then evaluates:
 
 * each bank's distilled model (``kd_bank_<X>``): what each institution would
@@ -22,7 +26,13 @@ import numpy as np
 
 from heterofl.distillation.aggregation import weighted_average
 from heterofl.evaluation.metrics import average_precision, roc_auc, threshold_metrics
-from heterofl.experiments.common import MODEL_LABELS, RunContext, record_system, timed_predict
+from heterofl.experiments.common import (
+    MODEL_LABELS,
+    RunContext,
+    committee_composition,
+    record_system,
+    timed_predict,
+)
 from heterofl.experiments.ensemble import (
     MissingDependencyError,
     check_local_dependency,
@@ -124,7 +134,8 @@ def run(ctx: RunContext) -> None:
     weight_diag: dict = {}
     w = committee_weights(com_val, y_val, weighting, weight_diag)
     record_system(ctx, system="kd_committee",
-                  label=f"Heterogeneous KD committee ({weighting})", model_type="committee",
+                  label=f"{committee_composition(ctx.clients)} KD committee ({weighting})",
+                  model_type="committee",
                   p_val=weighted_average(com_val, sorted(banks), w),
                   p_test=weighted_average(com_test, sorted(banks), w),
                   extra={"kd_phase": "after", "selected_round": r_com, "model_selection": policy,

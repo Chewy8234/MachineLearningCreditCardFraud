@@ -90,6 +90,38 @@ output directories hold legacy results, so set new ones:
 `SMOKE_RESULTS=results/smoke_v2 scripts/run_smoke.sh`,
 `FULL_RESULTS=results/full_v2 PROXY_RESULTS=results/full_random_proxy_v2 scripts/run_all.sh --require-clean-source`.
 
+**Model-family matrix** (supplementary): every family — logistic regression, MLP,
+RF, XGBoost — trained locally at every bank, centralized, and with its own
+homogeneous FL scheme (FedAvg for LR/MLP, federated forest for RF, federated
+bagging for XGBoost), plus the KD committee, all tracked over 100 rounds. It runs
+in-process (no Ray/Flower transport; the KD loop reproduces the Flower run exactly)
+and writes `tables.md`:
+
+```bash
+.venv/bin/python -m heterofl.experiments.model_matrix --config configs/paper.yaml \
+    --seeds 42 --scenarios iid --out results/model_matrix      # ~25 min per seed x scenario
+```
+
+Its "federated forest" is a union of locally grown trees, i.e. an ensemble of local
+forests, not collaborative training.
+
+**Homogeneous baselines** (architecture control; [docs/homogeneous_baselines.md](docs/homogeneous_baselines.md)):
+the same KD protocol and the same prediction ensemble with all three banks on one
+model family (`configs/homog_{xgboost,random_forest,mlp}.yaml`; H1–H3 KD committees,
+E1–E3 no-KD ensembles), plus federated XGBoost tree bagging (`fedxgb_bagging`), an
+epoch-matched FedAvg and a λ = 0 MLP control. All four profiles (including the
+heterogeneous reference `results/full_v2`) come from one source revision and
+environment, followed by a paired comparison that refuses to run unless partitions,
+test labels, dataset, library versions and every non-client setting are identical:
+
+```bash
+scripts/run_homogeneous.sh                                # sequential, 12 cores
+CACHE_ROOT=/scratch LANES=2 scripts/run_homogeneous.sh    # two profiles at a time, 24 cores
+python scripts/compare_committees.py --hetero results/full_v2 \
+    --homog-xgboost results/homog_xgboost --homog-random-forest results/homog_random_forest \
+    --homog-mlp results/homog_mlp --out results/committee_comparison
+```
+
 * **Safe resume.** Re-running the same command skips completed runs, but only
   after verifying that each run's recorded identity (complete effective
   configuration, dataset SHA-256, library versions, partition, seed) and source

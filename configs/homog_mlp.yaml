@@ -1,0 +1,35 @@
+# Homogeneous baselines, MLP family (H3 KD committee, E3 ensemble, FedAvg).
+#   python -m heterofl.experiments.runner --config configs/homog_mlp.yaml
+# Identical to paper.yaml except that every bank trains the MLP (see homog_xgboost.yaml).
+# Controls that only make sense for an incrementally trained model:
+#   kd_lambda_0.0     -- same KD schedule without the teacher term: the distilled MLPs
+#                        get 10 extra fine-tuning epochs, so this separates distillation
+#                        from extra training
+#   fedavg_20_epochs  -- FedAvg with the KD-MLP's total epoch budget (10 local-only +
+#                        5 rounds x 2 = 20; FedAvg primary: 5 rounds x 2 = 10)
+base_config: paper.yaml
+profile: homog_mlp
+results_dir: results/homog_mlp
+
+clients:
+  - {bank: A, model: mlp}
+  - {bank: B, model: mlp}
+  - {bank: C, model: mlp}
+
+methods: [local, ensemble, fedavg, heterogeneous_kd]
+
+ablations:
+  enabled: true
+  scenarios: [iid, mild_non_iid, moderate_non_iid, severe_non_iid]
+  runs:
+    kd_lambda_0.0:
+      method: heterogeneous_kd
+      overrides: {kd: {lambda_kd: 0.0}}
+    fedavg_20_epochs:
+      method: fedavg
+      overrides: {fedavg: {local_epochs: 4}}
+    kd_lambda_0.1: __remove__
+    kd_lambda_1.0: __remove__
+    kd_full_committee: __remove__
+    kd_teacher_val_weighted: __remove__
+    ensemble_val_weighted: __remove__

@@ -26,6 +26,18 @@ log = get_logger("experiments")
 MODEL_LABELS = {"xgboost": "XGBoost", "random_forest": "Random Forest", "mlp": "MLP"}
 
 
+def committee_composition(clients: list[dict]) -> str:
+    """``Heterogeneous`` if the banks use different model families, else ``Homogeneous 3xMLP``.
+
+    The KD protocol and the prediction ensemble are identical either way; only the
+    clients' model families (``cfg['clients']``) differ.
+    """
+    types = [c["model"] for c in clients]
+    if len(set(types)) > 1:
+        return "Heterogeneous"
+    return f"Homogeneous {len(types)}x{MODEL_LABELS.get(types[0], types[0])}"
+
+
 @dataclass
 class RunContext:
     cfg: dict

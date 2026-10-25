@@ -12,7 +12,7 @@ from pathlib import Path
 
 from heterofl.distillation.aggregation import validation_ap_weights, weighted_average
 from heterofl.evaluation.metrics import average_precision
-from heterofl.experiments.common import RunContext, record_system
+from heterofl.experiments.common import RunContext, committee_composition, record_system
 from heterofl.experiments.identity import dependency_mismatch
 from heterofl.utils.io import load_npz, read_json
 
@@ -75,9 +75,10 @@ def run(ctx: RunContext) -> None:
                                "weights": weights or {b: 1 / len(banks) for b in banks},
                                "weight_diagnostics": weight_diag or None,
                                "members_source": str(local_dir)}
+    kind = committee_composition(ctx.clients)
     record_system(ctx, system=f"ensemble_{weighting}",
-                  label=("Heterogeneous ensemble (equal)" if weighting == "equal"
-                         else "Heterogeneous ensemble (val-AP weighted)"),
+                  label=(f"{kind} ensemble (equal)" if weighting == "equal"
+                         else f"{kind} ensemble (val-AP weighted)"),
                   model_type="committee", p_val=ens_val, p_test=ens_test,
                   extra={"weighting": weighting, "train_seconds": train,
                          "test_inference_seconds": infer, "communication_bytes": 0,

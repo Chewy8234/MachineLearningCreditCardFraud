@@ -16,7 +16,9 @@ from typing import Any
 import numpy as np
 import yaml
 
-VALID_METHODS = ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd")
+VALID_METHODS = ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd",
+                 "fedxgb_bagging")
+ABLATION_METHODS = ("heterogeneous_kd", "ensemble", "fedavg")
 VALID_MODEL_TYPES = ("xgboost", "random_forest", "mlp")
 VALID_TEACHERS = ("leave_one_out", "full_committee")
 VALID_WEIGHTINGS = ("equal", "validation_ap")
@@ -34,7 +36,8 @@ REMOVE = "__remove__"
 TOP_LEVEL_KEYS = frozenset({
     "profile", "publishable", "results_dir", "models_config", "data", "split",
     "preprocessing", "seeds", "scenarios", "partitioning", "clients", "methods", "models",
-    "federation", "fedavg", "kd", "ensemble", "evaluation", "ablations", "report", "debug",
+    "federation", "fedavg", "fedxgb", "kd", "ensemble", "evaluation", "ablations", "report",
+    "debug",
     "project_root", "config_path",
 })
 SECTION_KEYS = {
@@ -46,6 +49,7 @@ SECTION_KEYS = {
     "federation": {"num_rounds", "client_num_cpus", "client_num_gpus", "round_timeout",
                    "job_timeout"},
     "fedavg": {"local_epochs"},
+    "fedxgb": {"trees_per_round"},   # optional: only read by the fedxgb_bagging method
     "kd": {"lambda_kd", "teacher", "teacher_weighting", "prob_clip", "tree_update",
            "xgb_trees_per_round", "mlp_epochs_per_round", "proxy_batch_size"},
     "ensemble": {"weighting"},
@@ -302,6 +306,9 @@ def validate_config(cfg: dict) -> None:
     _number(fed.get("job_timeout"), "federation.job_timeout", low=0, low_open=True,
             allow_none=True)
     _number(cfg["fedavg"].get("local_epochs"), "fedavg.local_epochs", integer=True, low=1)
+    if "fedxgb_bagging" in cfg["methods"]:
+        _number((cfg.get("fedxgb") or {}).get("trees_per_round"), "fedxgb.trees_per_round",
+                integer=True, low=1)
 
     validate_models(cfg)
     _validate_kd(cfg["kd"], "kd", cfg)
@@ -325,8 +332,8 @@ def validate_config(cfg: dict) -> None:
 
     for name, ab in (cfg.get("ablations", {}) or {}).get("runs", {}).items():
         _unknown(ab, ABLATION_RUN_KEYS, f"ablations.runs.{name}")
-        if ab.get("method") not in ("heterogeneous_kd", "ensemble"):
-            raise ConfigError(f"Ablation {name}: method must be heterogeneous_kd or ensemble")
+        if ab.get("method") not in ABLATION_METHODS:
+            raise ConfigError(f"Ablation {name}: method must be one of {ABLATION_METHODS}")
         merged = deep_merge(cfg, ab.get("overrides", {}))
         for section in ab.get("overrides", {}):
             if section not in TOP_LEVEL_KEYS:
@@ -369,6 +376,8 @@ def validate_models(cfg: dict, where: str = "") -> None:
     needed = {c["model"] for c in cfg["clients"]}
     if "fedavg" in cfg.get("methods", []):
         needed.add("mlp")
+    if "fedxgb_bagging" in cfg.get("methods", []):
+        needed.add("xgboost")
     missing = sorted(needed - set(models))
     if missing:
         raise ConfigError(f"{where}models has no configuration for {missing} "

@@ -1,0 +1,23 @@
+# Homogeneous baselines, Random Forest family (H2 KD committee, E2 ensemble).
+#   python -m heterofl.experiments.runner --config configs/homog_random_forest.yaml
+# Identical to paper.yaml except that every bank trains a Random Forest (see
+# homog_xgboost.yaml). No federated-forest method: a union of independently grown
+# local trees is a prediction ensemble of local forests (= E2), not collaborative
+# training (docs/homogeneous_baselines.md).
+base_config: paper.yaml
+profile: homog_random_forest
+results_dir: results/homog_random_forest
+
+clients:
+  - {bank: A, model: random_forest}
+  - {bank: B, model: random_forest}
+  - {bank: C, model: random_forest}
+
+methods: [local, ensemble, heterogeneous_kd]
+
+scenarios:
+  mild_non_iid:
+    methods: [local, ensemble, heterogeneous_kd]
+
+ablations:
+  enabled: false                # lambda = 0 refits the identical forests (= E2 members)

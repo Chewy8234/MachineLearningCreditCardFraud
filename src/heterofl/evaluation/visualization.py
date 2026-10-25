@@ -23,9 +23,9 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 FAMILY_ORDER = ["Local", "Centralized (ref.)", "Ensemble (no KD)", "FedAvg", "KD (per bank)",
-                "KD committee"]
+                "KD committee", "Fed. XGB bagging"]
 FAMILY_COLORS = dict(zip(FAMILY_ORDER, ["#2a78d6", "#eb6834", "#1baf7a", "#eda100",
-                                        "#e87ba4", "#008300"], strict=True))
+                                        "#e87ba4", "#008300", "#6250d6"], strict=True))
 BANK_COLORS = {"A": "#2a78d6", "B": "#eb6834", "C": "#1baf7a"}
 MODEL_NAMES = {"xgboost": "XGBoost", "random_forest": "Random Forest", "mlp": "MLP"}
 MARKERS = ["o", "s", "^", "D", "v", "P"]
@@ -149,6 +149,7 @@ def fig_heterogeneity(summary: pd.DataFrame, scenarios: list[str], labels: dict,
     fig, ax = plt.subplots(figsize=(5.6, 3.4))
     x = np.arange(len(scenarios))
     for i, (key, fam) in enumerate([("fedavg_global", "FedAvg"),
+                                    ("fedxgb_global", "Fed. XGB bagging"),
                                     ("kd_committee", "KD committee"),
                                     ("ensemble", "Ensemble (no KD)"),
                                     ("kd_bank_mean", "KD (per bank)"),
@@ -255,7 +256,7 @@ def fig_curves(curves: dict, scenarios: list[str], labels: dict, out: Path, kind
 
 
 def fig_before_after(df: pd.DataFrame, scenarios: list[str], labels: dict, out: Path,
-                     banner=None) -> list[Path]:
+                     banner=None, kind: str = "Heterogeneous") -> list[Path]:
     """Figure 7: per-bank test AP before (local-only) and after KD."""
     if df.empty:
         return []
@@ -283,7 +284,7 @@ def fig_before_after(df: pd.DataFrame, scenarios: list[str], labels: dict, out: 
             ax.set_ylabel("Test AP (mean ± std over seeds)")
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor="white", edgecolor=TEXT_2, hatch="///"),
                plt.Rectangle((0, 0), 1, 1, color=TEXT_2)]
-    fig.legend(handles, ["Before: local-only model", "After: heterogeneous KD"],
+    fig.legend(handles, ["Before: local-only model", f"After: {kind[:1].lower() + kind[1:]} KD"],
                loc="lower center", ncol=2, frameon=False, bbox_to_anchor=(0.5, -0.05))
     fig.tight_layout(rect=(0, 0.05, 1, 1))
     return _save(fig, out, "fig7_before_after_kd", banner)

@@ -110,8 +110,25 @@ def git_info(root: str | Path) -> dict:
 
 
 def source_patch(root: str | Path) -> bytes | None:
-    """``git diff HEAD --binary`` of a dirty tree (tracked files only), for the run record."""
-    return _git(root, "diff", "HEAD", "--binary", text=False)
+    """Patch of a dirty tree against HEAD, for the run record (``git apply``-able).
+
+    ``git diff HEAD --binary`` covers tracked files; untracked, non-ignored files are
+    appended as new-file diffs, so the recorded patch reproduces the whole working tree.
+    """
+    patch = _git(root, "diff", "HEAD", "--binary", text=False)
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard") or ""
+    parts = [patch] if patch else []
+    for name in sorted(filter(None, untracked.splitlines())):
+        # --no-index exits 1 when the files differ, which _git treats as a failure;
+        # run it directly instead
+        try:
+            proc = subprocess.run(["git", "diff", "--binary", "--no-index", "--", "/dev/null",
+                                   name], cwd=root, capture_output=True, timeout=30, check=False)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if proc.returncode in (0, 1) and proc.stdout:
+            parts.append(proc.stdout)
+    return b"".join(parts) if parts else patch
 
 
 def same_source(a: dict | None, b: dict | None) -> bool:

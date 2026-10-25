@@ -40,7 +40,7 @@ from pathlib import Path
 from heterofl.data.loader import DatasetNotFoundError
 from heterofl.data.partitioning import PartitionError
 from heterofl.data.pipeline import DataBundle, ScenarioData, prepare_bundle, prepare_scenario
-from heterofl.experiments import centralized, ensemble, heterogeneous, homogeneous, local
+from heterofl.experiments import centralized, ensemble, fedxgb, heterogeneous, homogeneous, local
 from heterofl.experiments.common import RunContext, write_outputs
 from heterofl.experiments.identity import (
     IDENTITY_SCHEMA,
@@ -69,9 +69,11 @@ from heterofl.utils.reproducibility import (
 
 log = get_logger("runner")
 
-METHOD_ORDER = ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd")
+METHOD_ORDER = ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd",
+                "fedxgb_bagging")
 METHOD_MODULES = {"local": local, "centralized": centralized, "ensemble": ensemble,
-                  "fedavg": homogeneous, "heterogeneous_kd": heterogeneous}
+                  "fedavg": homogeneous, "heterogeneous_kd": heterogeneous,
+                  "fedxgb_bagging": fedxgb}
 
 SKIP_STATUS = {"skip": "skipped-completed", "skip-other-source": "skipped-completed-other-source"}
 
