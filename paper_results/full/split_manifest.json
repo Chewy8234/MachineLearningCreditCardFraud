@@ -1,0 +1,116 @@
+{
+  "spec": {
+    "bundle_version": 1,
+    "dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+    "subsample_fraction": null,
+    "subsample_seed": 0,
+    "drop_duplicates": false,
+    "split": {
+      "seed": 42,
+      "test_fraction": 0.2,
+      "validation_fraction": 0.15,
+      "proxy_fraction": 0.1,
+      "proxy_sampling": "stratified"
+    },
+    "preprocessing": {
+      "log_amount": true
+    }
+  },
+  "tag": "ulb-5d63e0e1f834",
+  "synthetic": false,
+  "n_rows_loaded": 284807,
+  "n_rows_retained": 284807,
+  "n_rows_in_experiment": 284807,
+  "split_seed": 42,
+  "proxy_construction": "stratified on labels before labels were dropped (label-informed reference set construction); proxy labels are never written to the federation view",
+  "splits": {
+    "test": {
+      "n": 56962,
+      "fraud": 98,
+      "legitimate": 56864,
+      "fraud_rate": 0.0017204452090867595,
+      "index_sha256": "f1c29dfda98a5677f8f7bdeba95cf3dfe524fa846fb216a34d0792708a1c229e",
+      "row_id_sha256": "f1c29dfda98a5677f8f7bdeba95cf3dfe524fa846fb216a34d0792708a1c229e"
+    },
+    "validation": {
+      "n": 34177,
+      "fraud": 59,
+      "legitimate": 34118,
+      "fraud_rate": 0.0017263071656377096,
+      "index_sha256": "992c01edf36033e753bcae26d1b44daa007cbc55ffb970dd7351da035705456d",
+      "row_id_sha256": "992c01edf36033e753bcae26d1b44daa007cbc55ffb970dd7351da035705456d"
+    },
+    "proxy": {
+      "n": 19367,
+      "fraud": 34,
+      "legitimate": 19333,
+      "fraud_rate": 0.0017555635875458253,
+      "index_sha256": "4881944f49e3ed9c3398d5ec4944054a1f4fa747e747f46deaf587f47cc1cb10",
+      "row_id_sha256": "4881944f49e3ed9c3398d5ec4944054a1f4fa747e747f46deaf587f47cc1cb10"
+    },
+    "client_pool": {
+      "n": 174301,
+      "fraud": 301,
+      "legitimate": 174000,
+      "fraud_rate": 0.0017268977229046305,
+      "index_sha256": "ec79045d59c409c1a4a5e51e7dd7b646780c260b543835029e3e0222e6a30548",
+      "row_id_sha256": "ec79045d59c409c1a4a5e51e7dd7b646780c260b543835029e3e0222e6a30548"
+    }
+  },
+  "overlap_check": {
+    "test&validation": 0,
+    "test&proxy": 0,
+    "test&client_pool": 0,
+    "validation&proxy": 0,
+    "validation&client_pool": 0,
+    "proxy&client_pool": 0,
+    "all_disjoint": true
+  },
+  "cross_split_exact_feature_duplicates": {
+    "validation": 149,
+    "test": 299
+  },
+  "preprocessing": {
+    "log_amount": true,
+    "fitted_on": "proxy split features (labels unused)",
+    "n_fit_rows": 19367,
+    "feature_columns": [
+      "Time",
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V5",
+      "V6",
+      "V7",
+      "V8",
+      "V9",
+      "V10",
+      "V11",
+      "V12",
+      "V13",
+      "V14",
+      "V15",
+      "V16",
+      "V17",
+      "V18",
+      "V19",
+      "V20",
+      "V21",
+      "V22",
+      "V23",
+      "V24",
+      "V25",
+      "V26",
+      "V27",
+      "V28",
+      "Amount"
+    ]
+  },
+  "dataset": {
+    "path": "C:\\Users\\Sebastian Campos\\MachineLearningCreditCardFraud\\data\\raw\\creditcard.csv",
+    "sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+    "matches_known_ulb_release": true,
+    "size_bytes": 150828752
+  }
+}

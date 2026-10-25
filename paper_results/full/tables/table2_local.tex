@@ -1,0 +1,27 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Local-only models (Experiment 1), test split, mean $\pm$ std over 3 seed(s); all seeds share one test set. F1 uses the validation-selected threshold.}
+\label{tab:local}
+\begin{tabular}{llrrrr}
+\toprule
+Scenario & System & AP & ROC-AUC & F1 & Rec@FPR=0.1\% \\
+\midrule
+IID & Local A (XGB) & \textbf{0.857 $\pm$ 0.010} & \textbf{0.979 $\pm$ 0.006} & \textbf{0.862 $\pm$ 0.016} & \textbf{0.871 $\pm$ 0.006} \\
+ & Local B (RF) & 0.856 $\pm$ 0.016 & 0.965 $\pm$ 0.003 & 0.828 $\pm$ 0.008 & \textbf{0.871 $\pm$ 0.012} \\
+ & Local C (MLP) & 0.798 $\pm$ 0.014 & 0.966 $\pm$ 0.004 & 0.839 $\pm$ 0.017 & 0.864 $\pm$ 0.016 \\
+\midrule
+Mild ($\alpha$=1.0) & Local A (XGB) & 0.832 $\pm$ 0.076 & \textbf{0.969 $\pm$ 0.022} & 0.834 $\pm$ 0.071 & 0.854 $\pm$ 0.059 \\
+ & Local B (RF) & \textbf{0.839 $\pm$ 0.007} & 0.960 $\pm$ 0.012 & 0.835 $\pm$ 0.009 & \textbf{0.867 $\pm$ 0.010} \\
+ & Local C (MLP) & 0.801 $\pm$ 0.011 & 0.966 $\pm$ 0.004 & \textbf{0.839 $\pm$ 0.030} & \textbf{0.867 $\pm$ 0.000} \\
+\midrule
+Moderate ($\alpha$=0.5) & Local A (XGB) & 0.836 $\pm$ 0.070 & \textbf{0.977 $\pm$ 0.008} & \textbf{0.855 $\pm$ 0.033} & \textbf{0.881 $\pm$ 0.012} \\
+ & Local B (RF) & \textbf{0.852 $\pm$ 0.001} & 0.960 $\pm$ 0.015 & 0.854 $\pm$ 0.029 & 0.874 $\pm$ 0.006 \\
+ & Local C (MLP) & 0.843 $\pm$ 0.018 & 0.970 $\pm$ 0.001 & 0.849 $\pm$ 0.006 & \textbf{0.881 $\pm$ 0.016} \\
+\midrule
+Severe ($\alpha$=0.1) & Local A (XGB) & \textbf{0.826 $\pm$ 0.046} & \textbf{0.971 $\pm$ 0.018} & 0.810 $\pm$ 0.044 & 0.867 $\pm$ 0.020 \\
+ & Local B (RF) & 0.784 $\pm$ 0.079 & 0.960 $\pm$ 0.015 & 0.828 $\pm$ 0.046 & 0.854 $\pm$ 0.041 \\
+ & Local C (MLP) & 0.805 $\pm$ 0.009 & 0.967 $\pm$ 0.007 & \textbf{0.830 $\pm$ 0.036} & \textbf{0.874 $\pm$ 0.006} \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,21 @@
+scenario,series,label,mean,std,n
+iid,fedavg_global,FedAvg (homogeneous MLP),0.8429963199088499,0.034328094743806985,3
+iid,kd_committee,Heterogeneous KD committee,0.8810393922931189,0.005508519982519286,3
+iid,ensemble,Heterogeneous ensemble (no KD),0.87828155185398,0.0068505175489240976,3
+iid,kd_bank_mean,"KD, mean of bank models",0.8494758205545399,0.0069925039444239615,3
+iid,local_mean,"Local-only, mean of bank models",0.8368508728355551,0.0026886668409663913,3
+mild_non_iid,fedavg_global,FedAvg (homogeneous MLP),0.8464392565780646,0.03208258890371477,3
+mild_non_iid,kd_committee,Heterogeneous KD committee,0.8752203270024195,0.005175473834776433,3
+mild_non_iid,ensemble,Heterogeneous ensemble (no KD),0.8657711438231467,0.02978140608359684,3
+mild_non_iid,kd_bank_mean,"KD, mean of bank models",0.8446153483539288,0.01024816259039956,3
+mild_non_iid,local_mean,"Local-only, mean of bank models",0.8242377921408929,0.02819859806394476,3
+moderate_non_iid,fedavg_global,FedAvg (homogeneous MLP),0.8312365301464008,0.035244657389600656,3
+moderate_non_iid,kd_committee,Heterogeneous KD committee,0.8836101471998915,0.00411705519396413,3
+moderate_non_iid,ensemble,Heterogeneous ensemble (no KD),0.8784793954451473,0.006324142044081471,3
+moderate_non_iid,kd_bank_mean,"KD, mean of bank models",0.8472832906258826,0.023381167534424704,3
+moderate_non_iid,local_mean,"Local-only, mean of bank models",0.8437617239352129,0.027671929633384797,3
+severe_non_iid,fedavg_global,FedAvg (homogeneous MLP),0.8352020475418119,0.041381644505378505,3
+severe_non_iid,kd_committee,Heterogeneous KD committee,0.8536971610787359,0.028009030455760774,3
+severe_non_iid,ensemble,Heterogeneous ensemble (no KD),0.8594797411816057,0.023993775802807205,3
+severe_non_iid,kd_bank_mean,"KD, mean of bank models",0.8190989941058016,0.015303670561206443,3
+severe_non_iid,local_mean,"Local-only, mean of bank models",0.804981202573745,0.023932700561728085,3

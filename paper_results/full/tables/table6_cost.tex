@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Computational and communication overhead per run (mean $\pm$ std over seeds and scenarios). Train = summed client fitting time (clients run in parallel in the simulation). Communication counts serialised array payloads in both directions. Centralized training would require pooling the raw client rows ($\approx$21.6 MB as float32), which is outside any federated protocol. Random Forest is fully retrained every KD round.}
+\label{tab:cost}
+\begin{tabular}{lrrrr}
+\toprule
+Method & Train (s) & Test inference (s) & Comm. (MB) & Federation wall (s) \\
+\midrule
+Local (3 banks) & 7.5 $\pm$ 3.4 & 0.08 $\pm$ 0.01 & 0.00 $\pm$ 0.00 & -- \\
+Centralized (3 models, ref.) & 38.8 $\pm$ 2.5 & 0.13 $\pm$ 0.01 & raw data & -- \\
+Ensemble (no KD) & 7.5 $\pm$ 3.4 & 0.08 $\pm$ 0.01 & 0.00 $\pm$ 0.00 & -- \\
+FedAvg & 6.8 $\pm$ 0.3 & 0.00 $\pm$ 0.00 & 0.52 $\pm$ 0.00 & 3.7 $\pm$ 0.6 \\
+Heterogeneous KD & 78.9 $\pm$ 51.3 & 0.10 $\pm$ 0.02 & 2.56 $\pm$ 0.00 & 69.3 $\pm$ 52.0 \\
+\bottomrule
+\end{tabular}
+\end{table}

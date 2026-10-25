@@ -1,0 +1,41 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Centralized reference, homogeneous FL, heterogeneous ensemble (no KD) and heterogeneous KD, test split, mean $\pm$ std over 3 seed(s); all seeds share one test set. AP = average precision (step-wise), PR-AUC (trap.) = trapezoidal area. Threshold-dependent metrics use the validation-selected threshold (max F1). Bold: best per scenario among federated/local systems; the centralized rows are a non-federated reference and are not bolded.}
+\label{tab:main}
+\begin{tabular}{llrrrrrrr}
+\toprule
+Scenario & System & AP & PR-AUC (trap.) & ROC-AUC & Prec. & Rec. & F1 & Rec@FPR=0.1\% \\
+\midrule
+IID & Central. XGB (ref.) & 0.887 $\pm$ 0.002 & 0.886 $\pm$ 0.002 & 0.986 $\pm$ 0.003 & 0.902 $\pm$ 0.005 & 0.874 $\pm$ 0.006 & 0.888 $\pm$ 0.003 & 0.888 $\pm$ 0.000 \\
+ & Central. RF (ref.) & 0.877 $\pm$ 0.003 & 0.881 $\pm$ 0.003 & 0.967 $\pm$ 0.009 & 0.950 $\pm$ 0.006 & 0.837 $\pm$ 0.010 & 0.890 $\pm$ 0.007 & 0.878 $\pm$ 0.000 \\
+ & Central. MLP (ref.) & 0.847 $\pm$ 0.027 & 0.855 $\pm$ 0.017 & 0.973 $\pm$ 0.001 & 0.881 $\pm$ 0.037 & 0.850 $\pm$ 0.006 & 0.865 $\pm$ 0.016 & 0.878 $\pm$ 0.000 \\
+ & Ensemble (equal) & 0.878 $\pm$ 0.007 & 0.878 $\pm$ 0.007 & 0.978 $\pm$ 0.004 & 0.926 $\pm$ 0.032 & 0.786 $\pm$ 0.031 & 0.849 $\pm$ 0.008 & \textbf{0.888 $\pm$ 0.000} \\
+ & FedAvg MLP & 0.843 $\pm$ 0.034 & 0.852 $\pm$ 0.019 & 0.971 $\pm$ 0.001 & 0.843 $\pm$ 0.077 & \textbf{0.857 $\pm$ 0.027} & 0.848 $\pm$ 0.026 & 0.884 $\pm$ 0.006 \\
+ & KD A (XGB) & 0.867 $\pm$ 0.019 & 0.866 $\pm$ 0.019 & \textbf{0.982 $\pm$ 0.004} & 0.935 $\pm$ 0.019 & 0.772 $\pm$ 0.126 & 0.842 $\pm$ 0.075 & 0.881 $\pm$ 0.012 \\
+ & KD B (RF) & 0.857 $\pm$ 0.016 & 0.859 $\pm$ 0.016 & 0.963 $\pm$ 0.008 & 0.912 $\pm$ 0.014 & 0.765 $\pm$ 0.097 & 0.830 $\pm$ 0.053 & 0.881 $\pm$ 0.006 \\
+ & KD C (MLP) & 0.825 $\pm$ 0.022 & 0.832 $\pm$ 0.012 & 0.966 $\pm$ 0.002 & 0.873 $\pm$ 0.025 & 0.813 $\pm$ 0.041 & 0.841 $\pm$ 0.017 & 0.867 $\pm$ 0.010 \\
+ & KD committee & \textbf{0.881 $\pm$ 0.006} & \textbf{0.881 $\pm$ 0.006} & 0.979 $\pm$ 0.005 & \textbf{0.958 $\pm$ 0.013} & 0.772 $\pm$ 0.033 & \textbf{0.855 $\pm$ 0.016} & \textbf{0.888 $\pm$ 0.000} \\
+\midrule
+Moderate ($\alpha$=0.5) & Central. XGB (ref.) & 0.887 $\pm$ 0.002 & 0.886 $\pm$ 0.002 & 0.986 $\pm$ 0.003 & 0.902 $\pm$ 0.005 & 0.874 $\pm$ 0.006 & 0.888 $\pm$ 0.003 & 0.888 $\pm$ 0.000 \\
+ & Central. RF (ref.) & 0.877 $\pm$ 0.003 & 0.881 $\pm$ 0.003 & 0.967 $\pm$ 0.009 & 0.950 $\pm$ 0.006 & 0.837 $\pm$ 0.010 & 0.890 $\pm$ 0.007 & 0.878 $\pm$ 0.000 \\
+ & Central. MLP (ref.) & 0.847 $\pm$ 0.027 & 0.855 $\pm$ 0.017 & 0.973 $\pm$ 0.001 & 0.881 $\pm$ 0.037 & 0.850 $\pm$ 0.006 & 0.865 $\pm$ 0.016 & 0.878 $\pm$ 0.000 \\
+ & Ensemble (equal) & 0.878 $\pm$ 0.006 & 0.878 $\pm$ 0.006 & 0.979 $\pm$ 0.008 & 0.920 $\pm$ 0.037 & 0.799 $\pm$ 0.041 & 0.854 $\pm$ 0.016 & \textbf{0.888 $\pm$ 0.000} \\
+ & FedAvg MLP & 0.831 $\pm$ 0.035 & 0.839 $\pm$ 0.022 & 0.959 $\pm$ 0.016 & 0.890 $\pm$ 0.018 & 0.796 $\pm$ 0.027 & 0.840 $\pm$ 0.009 & 0.867 $\pm$ 0.010 \\
+ & KD A (XGB) & 0.836 $\pm$ 0.063 & 0.835 $\pm$ 0.064 & \textbf{0.980 $\pm$ 0.007} & 0.888 $\pm$ 0.058 & 0.827 $\pm$ 0.051 & 0.854 $\pm$ 0.025 & 0.884 $\pm$ 0.006 \\
+ & KD B (RF) & 0.859 $\pm$ 0.006 & 0.860 $\pm$ 0.006 & 0.962 $\pm$ 0.002 & 0.934 $\pm$ 0.036 & 0.759 $\pm$ 0.029 & 0.837 $\pm$ 0.020 & 0.878 $\pm$ 0.000 \\
+ & KD C (MLP) & 0.847 $\pm$ 0.024 & 0.847 $\pm$ 0.024 & 0.970 $\pm$ 0.000 & 0.897 $\pm$ 0.012 & \textbf{0.830 $\pm$ 0.039} & 0.862 $\pm$ 0.018 & 0.884 $\pm$ 0.012 \\
+ & KD committee & \textbf{0.884 $\pm$ 0.004} & \textbf{0.883 $\pm$ 0.004} & 0.979 $\pm$ 0.006 & \textbf{0.966 $\pm$ 0.007} & 0.786 $\pm$ 0.027 & \textbf{0.867 $\pm$ 0.018} & \textbf{0.888 $\pm$ 0.000} \\
+\midrule
+Severe ($\alpha$=0.1) & Central. XGB (ref.) & 0.887 $\pm$ 0.002 & 0.886 $\pm$ 0.002 & 0.986 $\pm$ 0.003 & 0.902 $\pm$ 0.005 & 0.874 $\pm$ 0.006 & 0.888 $\pm$ 0.003 & 0.888 $\pm$ 0.000 \\
+ & Central. RF (ref.) & 0.877 $\pm$ 0.003 & 0.881 $\pm$ 0.003 & 0.967 $\pm$ 0.009 & 0.950 $\pm$ 0.006 & 0.837 $\pm$ 0.010 & 0.890 $\pm$ 0.007 & 0.878 $\pm$ 0.000 \\
+ & Central. MLP (ref.) & 0.847 $\pm$ 0.027 & 0.855 $\pm$ 0.017 & 0.973 $\pm$ 0.001 & 0.881 $\pm$ 0.037 & 0.850 $\pm$ 0.006 & 0.865 $\pm$ 0.016 & 0.878 $\pm$ 0.000 \\
+ & Ensemble (equal) & \textbf{0.859 $\pm$ 0.024} & \textbf{0.859 $\pm$ 0.024} & 0.977 $\pm$ 0.004 & 0.895 $\pm$ 0.037 & 0.782 $\pm$ 0.085 & 0.832 $\pm$ 0.032 & \textbf{0.888 $\pm$ 0.000} \\
+ & FedAvg MLP & 0.835 $\pm$ 0.041 & 0.843 $\pm$ 0.028 & 0.967 $\pm$ 0.004 & 0.873 $\pm$ 0.042 & \textbf{0.830 $\pm$ 0.026} & \textbf{0.850 $\pm$ 0.017} & 0.864 $\pm$ 0.012 \\
+ & KD A (XGB) & 0.837 $\pm$ 0.029 & 0.837 $\pm$ 0.030 & \textbf{0.979 $\pm$ 0.001} & \textbf{0.913 $\pm$ 0.043} & 0.786 $\pm$ 0.044 & 0.844 $\pm$ 0.043 & 0.878 $\pm$ 0.010 \\
+ & KD B (RF) & 0.769 $\pm$ 0.089 & 0.763 $\pm$ 0.095 & 0.971 $\pm$ 0.001 & 0.817 $\pm$ 0.084 & 0.816 $\pm$ 0.041 & 0.815 $\pm$ 0.040 & 0.861 $\pm$ 0.029 \\
+ & KD C (MLP) & 0.851 $\pm$ 0.025 & 0.858 $\pm$ 0.012 & 0.970 $\pm$ 0.005 & 0.887 $\pm$ 0.040 & 0.810 $\pm$ 0.041 & 0.845 $\pm$ 0.011 & 0.881 $\pm$ 0.006 \\
+ & KD committee & 0.854 $\pm$ 0.028 & 0.853 $\pm$ 0.028 & 0.978 $\pm$ 0.001 & 0.899 $\pm$ 0.034 & 0.793 $\pm$ 0.069 & 0.840 $\pm$ 0.027 & \textbf{0.888 $\pm$ 0.000} \\
+\bottomrule
+\end{tabular}
+\end{table}

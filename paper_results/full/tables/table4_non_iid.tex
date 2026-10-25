@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Test AP under increasing client heterogeneity (mean $\pm$ std over 3 seed(s); all seeds share one test set). Dirichlet $\alpha$ does not fix the realised heterogeneity; see Table~\ref{tab:data} for the achieved distributions.}
+\label{tab:noniid}
+\begin{tabular}{lrrrr}
+\toprule
+System & IID & Mild ($\alpha$=1.0) & Moderate ($\alpha$=0.5) & Severe ($\alpha$=0.1) \\
+\midrule
+Local A (XGB) & 0.857 $\pm$ 0.010 & 0.832 $\pm$ 0.076 & 0.836 $\pm$ 0.070 & 0.826 $\pm$ 0.046 \\
+Local B (RF) & 0.856 $\pm$ 0.016 & 0.839 $\pm$ 0.007 & 0.852 $\pm$ 0.001 & 0.784 $\pm$ 0.079 \\
+Local C (MLP) & 0.798 $\pm$ 0.014 & 0.801 $\pm$ 0.011 & 0.843 $\pm$ 0.018 & 0.805 $\pm$ 0.009 \\
+Ensemble (equal) & 0.878 $\pm$ 0.007 & 0.866 $\pm$ 0.030 & 0.878 $\pm$ 0.006 & 0.859 $\pm$ 0.024 \\
+FedAvg MLP & 0.843 $\pm$ 0.034 & 0.846 $\pm$ 0.032 & 0.831 $\pm$ 0.035 & 0.835 $\pm$ 0.041 \\
+KD A (XGB) & 0.867 $\pm$ 0.019 & 0.858 $\pm$ 0.012 & 0.836 $\pm$ 0.063 & 0.837 $\pm$ 0.029 \\
+KD B (RF) & 0.857 $\pm$ 0.016 & 0.851 $\pm$ 0.004 & 0.859 $\pm$ 0.006 & 0.769 $\pm$ 0.089 \\
+KD C (MLP) & 0.825 $\pm$ 0.022 & 0.824 $\pm$ 0.041 & 0.847 $\pm$ 0.024 & 0.851 $\pm$ 0.025 \\
+KD committee & 0.881 $\pm$ 0.006 & 0.875 $\pm$ 0.005 & 0.884 $\pm$ 0.004 & 0.854 $\pm$ 0.028 \\
+Central. XGB (ref.) & 0.887 $\pm$ 0.002 & -- & 0.887 $\pm$ 0.002 & 0.887 $\pm$ 0.002 \\
+\bottomrule
+\end{tabular}
+\end{table}

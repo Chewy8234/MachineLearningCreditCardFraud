@@ -1,0 +1,21 @@
+scenario,series,label,mean,std,n
+iid,fedxgb_global,Federated XGBoost bagging,0.8410192982832201,0.008391352741673888,3
+iid,kd_committee,Homogeneous 3xXGBoost KD committee,0.8870377188001147,0.0008690314115697418,3
+iid,ensemble,Homogeneous 3xXGBoost ensemble (no KD),0.8801100186368808,0.0030607410825785027,3
+iid,kd_bank_mean,"KD, mean of bank models",0.8768622852925599,0.0029317874521418725,3
+iid,local_mean,"Local-only, mean of bank models",0.8654537963410441,0.004541459804210622,3
+mild_non_iid,fedxgb_global,Federated XGBoost bagging,0.8419428866401776,0.007274641237223382,3
+mild_non_iid,kd_committee,Homogeneous 3xXGBoost KD committee,0.880266888760683,0.009741124692006681,3
+mild_non_iid,ensemble,Homogeneous 3xXGBoost ensemble (no KD),0.8741726886786001,0.01645005803488617,3
+mild_non_iid,kd_bank_mean,"KD, mean of bank models",0.8673622027773739,0.009845433793219527,3
+mild_non_iid,local_mean,"Local-only, mean of bank models",0.8549394018565138,0.024064373717903802,3
+moderate_non_iid,fedxgb_global,Federated XGBoost bagging,0.8561465591133935,0.015312537791826663,3
+moderate_non_iid,kd_committee,Homogeneous 3xXGBoost KD committee,0.8812782321920919,0.0018999088721361474,3
+moderate_non_iid,ensemble,Homogeneous 3xXGBoost ensemble (no KD),0.8768879920464355,0.0007481397497547525,3
+moderate_non_iid,kd_bank_mean,"KD, mean of bank models",0.8640436267297602,0.02085914696413988,3
+moderate_non_iid,local_mean,"Local-only, mean of bank models",0.8521797392229945,0.023524798871317233,3
+severe_non_iid,fedxgb_global,Federated XGBoost bagging,0.8468711114673831,0.015906911681180486,3
+severe_non_iid,kd_committee,Homogeneous 3xXGBoost KD committee,0.8812312556039745,0.0005667229452709678,3
+severe_non_iid,ensemble,Homogeneous 3xXGBoost ensemble (no KD),0.8783708434719454,0.001975327379905429,3
+severe_non_iid,kd_bank_mean,"KD, mean of bank models",0.8485519297618906,0.02595014549678917,3
+severe_non_iid,local_mean,"Local-only, mean of bank models",0.8281673111262511,0.03268239425294038,3

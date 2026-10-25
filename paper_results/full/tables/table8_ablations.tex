@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Ablations (test AP, mean $\pm$ std over seeds). ``comm.'' = committee AP (for ensemble rows: the ensemble AP); ``bank mean'' = mean AP of the three distilled bank models. The primary method was fixed before these runs; ablations are not used to select it.}
+\label{tab:ablations}
+\begin{tabular}{lrrrrrr}
+\toprule
+Variant & IID: comm. & IID: bank mean & Moderate ($\alpha$=0.5): comm. & Moderate ($\alpha$=0.5): bank mean & Severe ($\alpha$=0.1): comm. & Severe ($\alpha$=0.1): bank mean \\
+\midrule
+KD primary ($\lambda$=0.5, LOO, equal) & 0.881 $\pm$ 0.006 & 0.849 $\pm$ 0.007 & 0.884 $\pm$ 0.004 & 0.847 $\pm$ 0.023 & 0.854 $\pm$ 0.028 & 0.819 $\pm$ 0.015 \\
+KD full\_committee & 0.884 $\pm$ 0.008 & 0.851 $\pm$ 0.005 & 0.885 $\pm$ 0.002 & 0.845 $\pm$ 0.026 & 0.856 $\pm$ 0.026 & 0.820 $\pm$ 0.013 \\
+KD lambda\_0.0 & 0.880 $\pm$ 0.007 & 0.832 $\pm$ 0.002 & 0.880 $\pm$ 0.005 & 0.842 $\pm$ 0.024 & 0.870 $\pm$ 0.014 & 0.814 $\pm$ 0.013 \\
+KD lambda\_0.1 & 0.880 $\pm$ 0.007 & 0.845 $\pm$ 0.001 & 0.884 $\pm$ 0.005 & 0.847 $\pm$ 0.029 & 0.860 $\pm$ 0.014 & 0.817 $\pm$ 0.023 \\
+KD lambda\_1.0 & 0.881 $\pm$ 0.008 & 0.852 $\pm$ 0.002 & 0.884 $\pm$ 0.005 & 0.852 $\pm$ 0.021 & 0.849 $\pm$ 0.035 & 0.818 $\pm$ 0.026 \\
+KD teacher\_val\_weighted & 0.881 $\pm$ 0.004 & 0.849 $\pm$ 0.005 & 0.884 $\pm$ 0.002 & 0.848 $\pm$ 0.022 & 0.855 $\pm$ 0.024 & 0.819 $\pm$ 0.015 \\
+Ensemble, equal weights (no KD) & 0.878 $\pm$ 0.007 & -- & 0.878 $\pm$ 0.006 & -- & 0.859 $\pm$ 0.024 & -- \\
+Ensemble, val-AP weights (no KD) & 0.878 $\pm$ 0.007 & -- & 0.879 $\pm$ 0.006 & -- & 0.862 $\pm$ 0.023 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}

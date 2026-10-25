@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Ablations (test AP, mean $\pm$ std over seeds). ``comm.'' = committee AP (for ensemble rows: the ensemble AP); ``bank mean'' = mean AP of the three distilled bank models. The primary method was fixed before these runs; ablations are not used to select it.}
+\label{tab:ablations}
+\begin{tabular}{lrrrrrr}
+\toprule
+Variant & IID: comm. & IID: bank mean & Moderate ($\alpha$=0.5): comm. & Moderate ($\alpha$=0.5): bank mean & Severe ($\alpha$=0.1): comm. & Severe ($\alpha$=0.1): bank mean \\
+\midrule
+KD primary ($\lambda$=0.5, LOO, equal) & 0.887 $\pm$ 0.001 & 0.877 $\pm$ 0.003 & 0.881 $\pm$ 0.002 & 0.864 $\pm$ 0.021 & 0.881 $\pm$ 0.001 & 0.849 $\pm$ 0.026 \\
+Ensemble, equal weights (no KD) & 0.880 $\pm$ 0.003 & -- & 0.877 $\pm$ 0.001 & -- & 0.878 $\pm$ 0.002 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}

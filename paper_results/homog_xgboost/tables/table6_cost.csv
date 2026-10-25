@@ -1,0 +1,5 @@
+method,label,family,train_seconds_mean,train_seconds_std,test_inference_seconds_mean,test_inference_seconds_std,communication_mb_mean,communication_mb_std,federation_wall_seconds_mean,federation_wall_seconds_std
+local,Local (3 banks),Local,1.4690707666680585,0.07695678342116231,0.06911954166510732,0.0023868211651339147,0.0,0.0,,
+ensemble,Ensemble (no KD),Ensemble (no KD),1.4690707666680585,0.07695678342116229,0.0691195416651074,0.0023868211651339216,0.0,0.0,,
+fedxgb_bagging,Federated XGBoost bagging,Fed. XGB bagging,0.6689133666604903,0.04714419377388999,0.041441100000156404,0.005082339477028778,3.4828337499999997,0.2073357150368477,,
+heterogeneous_kd,Homogeneous 3xXGBoost KD,KD committee,18.531739583334154,0.9123386786756622,0.08010519166843243,0.007853191850204345,2.560833,0.0,9.508113425000678,1.9590247859252978

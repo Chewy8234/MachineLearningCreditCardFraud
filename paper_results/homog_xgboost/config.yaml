@@ -1,0 +1,161 @@
+profile: homog_xgboost
+publishable: true
+results_dir: results/homog_xgboost
+models_config: configs/models.yaml
+data:
+  synthetic: false
+  subsample_fraction: null
+  subsample_seed: 0
+  drop_duplicates: false
+  path: data/raw/creditcard.csv
+  processed_dir: data/processed
+  partitions_dir: data/partitions
+split:
+  proxy_sampling: stratified
+  seed: 42
+  test_fraction: 0.2
+  validation_fraction: 0.15
+  proxy_fraction: 0.1
+preprocessing:
+  log_amount: true
+seeds:
+- 42
+- 123
+- 2026
+scenarios:
+  iid:
+    type: iid
+  moderate_non_iid:
+    type: dirichlet
+    alpha: 0.5
+  severe_non_iid:
+    type: dirichlet
+    alpha: 0.1
+  mild_non_iid:
+    type: dirichlet
+    alpha: 1.0
+    ablation: true
+    methods:
+    - local
+    - ensemble
+    - heterogeneous_kd
+    - fedxgb_bagging
+partitioning:
+  num_clients: 3
+  min_fraud_per_client: 10
+  min_legit_per_client: 1000
+  max_retries: 1000
+clients:
+- bank: A
+  model: xgboost
+- bank: B
+  model: xgboost
+- bank: C
+  model: xgboost
+methods:
+- local
+- ensemble
+- heterogeneous_kd
+- fedxgb_bagging
+federation:
+  client_num_gpus: 0
+  round_timeout: 3600
+  job_timeout: 14400
+  num_rounds: 5
+  client_num_cpus: 4
+fedavg:
+  local_epochs: 2
+kd:
+  tree_update: retrain
+  xgb_trees_per_round: 50
+  proxy_batch_size: 512
+  lambda_kd: 0.5
+  teacher: leave_one_out
+  teacher_weighting: equal
+  prob_clip: 1.0e-06
+  mlp_epochs_per_round: 2
+ensemble:
+  weighting: equal
+evaluation:
+  threshold_rule: max_f1
+  fixed_fpr_targets:
+  - 0.001
+  - 0.01
+  model_selection: final_round
+  bootstrap:
+    n_resamples: 1000
+    confidence: 0.95
+    seed: 0
+ablations:
+  enabled: false
+  runs:
+    kd_lambda_0.0:
+      method: heterogeneous_kd
+      overrides:
+        kd:
+          lambda_kd: 0.0
+    kd_lambda_0.1:
+      method: heterogeneous_kd
+      overrides:
+        kd:
+          lambda_kd: 0.1
+    kd_lambda_1.0:
+      method: heterogeneous_kd
+      overrides:
+        kd:
+          lambda_kd: 1.0
+    kd_full_committee:
+      method: heterogeneous_kd
+      overrides:
+        kd:
+          teacher: full_committee
+    kd_teacher_val_weighted:
+      method: heterogeneous_kd
+      overrides:
+        kd:
+          teacher_weighting: validation_ap
+    ensemble_val_weighted:
+      method: ensemble
+      overrides:
+        ensemble:
+          weighting: validation_ap
+  scenarios:
+  - iid
+  - moderate_non_iid
+  - severe_non_iid
+report:
+  auto: true
+  bootstrap_seed_for_curves: 42
+fedxgb:
+  trees_per_round: 20
+project_root: C:\Users\Sebastian Campos\MachineLearningCreditCardFraud
+models:
+  xgboost:
+    n_estimators: 300
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 1.0
+    reg_lambda: 1.0
+    tree_method: hist
+    max_bin: 256
+  random_forest:
+    n_estimators: 200
+    max_depth: null
+    min_samples_leaf: 1
+    max_features: sqrt
+    bootstrap: true
+  mlp:
+    dropout: 0.1
+    weight_decay: 0.0
+    device: cpu
+    torch_threads: 1
+    hidden_sizes:
+    - 64
+    - 32
+    learning_rate: 0.001
+    batch_size: 512
+    epochs: 10
+config_path: C:\Users\Sebastian Campos\MachineLearningCreditCardFraud\configs\homog_xgboost.yaml
+debug: {}

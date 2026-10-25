@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "experiment_hash": "2bdb6ea04a861c3a411652560eb2796aefe861ab8ce270cb648a89c2db52a6cf",
+  "config_hash": "cf2167083568f0361276c7d8182008d6a08dc4824f2dbf1f14cfe92e80d12ebb",
+  "dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+  "created": "2026-10-25T02:35:12+00:00",
+  "created_by_invocation": "full-20261025T023511Z-57f73e",
+  "source_at_creation": {
+    "commit": "3a0f650006c3e17bf8a27b0324b3dcd72ba94fc2",
+    "branch": "SuperDev",
+    "dirty": false,
+    "status_porcelain": [],
+    "diff_sha256": null,
+    "source_verified": true
+  },
+  "identity": {
+    "schema": 1,
+    "config": {
+      "profile": "full",
+      "publishable": true,
+      "data": {
+        "synthetic": false,
+        "subsample_fraction": null,
+        "subsample_seed": 0,
+        "drop_duplicates": false
+      },
+      "split": {
+        "proxy_sampling": "stratified",
+        "seed": 42,
+        "test_fraction": 0.2,
+        "validation_fraction": 0.15,
+        "proxy_fraction": 0.1
+      },
+      "preprocessing": {
+        "log_amount": true
+      },
+      "partitioning": {
+        "num_clients": 3,
+        "min_fraud_per_client": 10,
+        "min_legit_per_client": 1000,
+        "max_retries": 1000
+      },
+      "clients": [
+        {
+          "bank": "A",
+          "model": "xgboost"
+        },
+        {
+          "bank": "B",
+          "model": "random_forest"
+        },
+        {
+          "bank": "C",
+          "model": "mlp"
+        }
+      ],
+      "federation": {
+        "client_num_gpus": 0,
+        "num_rounds": 5,
+        "client_num_cpus": 4
+      },
+      "fedavg": {
+        "local_epochs": 2
+      },
+      "kd": {
+        "tree_update": "retrain",
+        "xgb_trees_per_round": 50,
+        "proxy_batch_size": 512,
+        "lambda_kd": 0.5,
+        "teacher": "leave_one_out",
+        "teacher_weighting": "equal",
+        "prob_clip": 1e-06,
+        "mlp_epochs_per_round": 2
+      },
+      "ensemble": {
+        "weighting": "equal"
+      },
+      "evaluation": {
+        "threshold_rule": "max_f1",
+        "fixed_fpr_targets": [
+          0.001,
+          0.01
+        ],
+        "model_selection": "final_round"
+      },
+      "models": {
+        "xgboost": {
+          "n_estimators": 300,
+          "max_depth": 6,
+          "learning_rate": 0.1,
+          "subsample": 0.8,
+          "colsample_bytree": 0.8,
+          "min_child_weight": 1.0,
+          "reg_lambda": 1.0,
+          "tree_method": "hist",
+          "max_bin": 256
+        },
+        "random_forest": {
+          "n_estimators": 200,
+          "max_depth": null,
+          "min_samples_leaf": 1,
+          "max_features": "sqrt",
+          "bootstrap": true
+        },
+        "mlp": {
+          "dropout": 0.1,
+          "weight_decay": 0.0,
+          "device": "cpu",
+          "torch_threads": 1,
+          "hidden_sizes": [
+            64,
+            32
+          ],
+          "learning_rate": 0.001,
+          "batch_size": 512,
+          "epochs": 10
+        }
+      }
+    },
+    "dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+    "packages": {
+      "flwr": "1.26.1",
+      "ray": "2.51.1",
+      "xgboost": "3.2.0",
+      "torch": "2.14.1",
+      "scikit-learn": "1.9.1",
+      "pandas": "3.0.1",
+      "numpy": "2.4.2",
+      "scipy": "1.17.1",
+      "matplotlib": "3.10.8",
+      "seaborn": "0.13.2",
+      "pyyaml": "6.0.3",
+      "joblib": "1.6.0"
+    }
+  }
+}

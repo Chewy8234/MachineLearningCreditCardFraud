@@ -1,0 +1,54 @@
+{
+  "n_rows": 284807,
+  "n_columns": 31,
+  "missing_columns": [],
+  "extra_columns": [],
+  "missing_values_per_column": {},
+  "missing_values_total": 0,
+  "non_finite_feature_values": 0,
+  "negative_amounts": 0,
+  "negative_times": 0,
+  "label_values": [
+    0,
+    1
+  ],
+  "class_distribution": {
+    "legitimate": 284315,
+    "fraud": 492,
+    "fraud_rate": 0.001727485630620034
+  },
+  "duplicates": {
+    "exact_duplicate_rows": 1081,
+    "exact_duplicate_fraud_rows": 19,
+    "feature_duplicate_groups_with_conflicting_labels": 0,
+    "policy": "retained (not removed); cross-split duplicates are reported in each partition manifest"
+  },
+  "feature_summary": {
+    "Amount": {
+      "min": 0.0,
+      "max": 25691.16,
+      "mean": 88.34961925093134,
+      "std": 250.12010924018855,
+      "median": 22.0
+    },
+    "Time": {
+      "min": 0.0,
+      "max": 172792.0,
+      "mean": 94813.85957508067,
+      "std": 47488.14595456617,
+      "median": 84692.0
+    }
+  },
+  "errors": [],
+  "warnings": [
+    "1081 exact duplicate rows retained"
+  ],
+  "valid": true,
+  "fingerprint": {
+    "path": "C:\\Users\\Sebastian Campos\\MachineLearningCreditCardFraud\\data\\raw\\creditcard.csv",
+    "sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+    "matches_known_ulb_release": true,
+    "size_bytes": 150828752
+  },
+  "synthetic": false
+}
