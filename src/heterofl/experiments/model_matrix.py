@@ -444,7 +444,7 @@ def write_report(out: Path, cfg: dict) -> Path:
             parts += ["**Test PR-AUC by round (federated experiments)**", "", "```text", *rt,
                       "```", ""]
     path = out / "tables.md"
-    path.write_text("\n".join(parts))
+    path.write_text("\n".join(parts), encoding="utf-8")
     final.to_csv(out / "all_final.csv", index=False)
     if len(curve):
         curve.to_csv(out / "all_rounds.csv", index=False)
@@ -482,7 +482,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_unit(cfg, seed, scenario, out, args.experiments, n_jobs, args.rounds,
                          args.overwrite)
     path = write_report(out, cfg)
-    print(path.read_text())
+    print(path.read_text(encoding="utf-8"))
     print(f"\nWritten to {path}")
     return 0
 

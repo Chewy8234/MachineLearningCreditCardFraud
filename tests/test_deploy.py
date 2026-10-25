@@ -24,10 +24,10 @@ def test_shipped_job_manifests_are_templates_and_are_rejected(capsys):
 
 def test_filled_manifest_passes(tmp_path):
     mod = _check()
-    src = (ROOT / "deploy" / "k8s" / "job-validate.yaml").read_text()
+    src = (ROOT / "deploy" / "k8s" / "job-validate.yaml").read_text(encoding="utf-8")
     filled = src.replace("REPLACE_GROUP", "lab").replace("REPLACE_PROJECT", "heterofl") \
                 .replace("REPLACE_TAG", "abc1234")
-    (tmp_path / "job.yaml").write_text(filled)
+    (tmp_path / "job.yaml").write_text(filled, encoding="utf-8")
     assert mod.main([str(tmp_path / "job.yaml")]) == 0
 
 

@@ -23,6 +23,7 @@ and ``--allow-source-change`` reuses such runs while marking them in the outcome
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from heterofl.utils.config import config_diff, config_hash, semantic_config, sha256_json
@@ -107,31 +108,52 @@ def dependency_mismatch(dep: dict, own: dict, ignore_sections: tuple[str, ...]) 
 
 
 class ResultsLock:
-    """Exclusive advisory lock on a results directory (POSIX ``fcntl.flock``).
+    """Exclusive advisory lock on a results directory.
 
     Held for the lifetime of a runner invocation, so two processes can never write
-    the same results tree. The lock file holds the owner's PID for diagnostics; the
-    kernel releases the lock if the process dies, so there is no stale-lock cleanup.
-    On platforms without ``fcntl`` (Windows) locking is unavailable and a warning is
-    logged by the caller.
+    the same results tree. POSIX uses ``fcntl.flock``; Windows uses a
+    ``msvcrt.locking`` byte-range lock on a byte far past the end of the file, so
+    the PID written at the start stays readable for diagnostics. In both cases the
+    OS releases the lock if the process dies, so there is no stale-lock cleanup.
+    On platforms with neither, locking is unavailable and the caller logs a warning.
     """
 
     FILENAME = ".heterofl.lock"
+    _WIN_LOCK_OFFSET = 1 << 30  # beyond the PID text; Windows may lock past EOF
 
     def __init__(self, root: Path):
         self.path = Path(root) / self.FILENAME
         self._fh = None
 
-    def acquire(self) -> bool:
-        try:
-            import fcntl
-        except ImportError:  # pragma: no cover - non-POSIX
-            return False
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        fh = self.path.open("a+")
+    def _try_lock(self, fh) -> bool:
+        """Lock without blocking; False if another process holds it. Raises
+        ``ImportError`` if the platform has no file locking."""
+        if sys.platform == "win32":
+            import msvcrt
+
+            fh.seek(self._WIN_LOCK_OFFSET)
+            try:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                return False
+            return True
+        import fcntl
+
         try:
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            return False
+        return True
+
+    def acquire(self) -> bool:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        fh = self.path.open("a+", encoding="utf-8")
+        try:
+            locked = self._try_lock(fh)
+        except ImportError:  # pragma: no cover - neither POSIX nor Windows
+            fh.close()
+            return False
+        if not locked:
             fh.seek(0)
             owner = fh.read().strip() or "unknown"
             fh.close()
@@ -147,8 +169,14 @@ class ResultsLock:
 
     def release(self) -> None:
         if self._fh is not None:
-            import fcntl
+            if sys.platform == "win32":
+                import msvcrt
 
-            fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+                self._fh.seek(self._WIN_LOCK_OFFSET)
+                msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
             self._fh.close()
             self._fh = None

@@ -46,7 +46,7 @@ def write_synthetic_creditcard(path: str | Path, **kwargs) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     make_synthetic_creditcard(**kwargs).to_csv(path, index=False)
     path.with_suffix(".SYNTHETIC.txt").write_text(
-        f"{SYNTHETIC_MARKER}: {path.name} is randomly generated test data.\n")
+        f"{SYNTHETIC_MARKER}: {path.name} is randomly generated test data.\n", encoding="utf-8")
     return path
 
 

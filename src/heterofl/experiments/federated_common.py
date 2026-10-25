@@ -10,7 +10,7 @@ from heterofl.federation.job import ClientSpec, FederatedJob
 from heterofl.federation.simulation import launch_subprocess
 
 
-def build_job(ctx: RunContext, mode: str) -> FederatedJob:
+def build_job(ctx: RunContext, mode: str, *, fedavg: dict | None = None) -> FederatedJob:
     fed = ctx.cfg["federation"]
     clients = [ClientSpec(partition_id=i, bank=c["bank"], model_type=c["model"])
                for i, c in enumerate(ctx.clients)]
@@ -22,7 +22,7 @@ def build_job(ctx: RunContext, mode: str) -> FederatedJob:
         num_rounds=int(fed["num_rounds"]),
         clients=clients,
         models=ctx.models_cfg,
-        fedavg=ctx.cfg["fedavg"],
+        fedavg=fedavg if fedavg is not None else ctx.cfg["fedavg"],
         kd=ctx.cfg["kd"],
         expected_proxy_sha256=ctx.data.manifest["proxy_row_id_sha256"],
         num_cpus_per_client=int(fed["client_num_cpus"]),

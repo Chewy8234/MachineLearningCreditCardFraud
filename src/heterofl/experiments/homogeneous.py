@@ -1,9 +1,15 @@
-"""Experiment 3 -- homogeneous FedAvg (genuine Flower federation, shared MLP).
+"""Experiment 3 -- homogeneous FedAvg (genuine Flower federation, shared network).
 
-All three banks train the same MLP architecture. Each round the server sends
-the global parameters, every bank runs ``fedavg.local_epochs`` epochs on its
+All three banks train the same architecture. Each round the server sends the
+global parameters, every bank runs ``fedavg.local_epochs`` epochs on its
 private data and returns parameters, and the server aggregates with
 example-count-weighted FedAvg. Total local epochs = num_rounds * local_epochs.
+
+Two methods use this module:
+
+* ``fedavg``        -- the shared Bank C MLP (system ``fedavg_global``)
+* ``fedavg_logreg`` -- logistic regression, i.e. the same network with no hidden
+                       layers (system ``fedavg_logreg_global``)
 """
 
 from __future__ import annotations
@@ -17,8 +23,19 @@ from heterofl.models.mlp import MLPModel
 from heterofl.utils.io import read_json, write_csv
 
 
+VARIANTS = {
+    # method: (fedavg.model, system name, label, model_type)
+    "fedavg": ("mlp", "fedavg_global", "FedAvg MLP (homogeneous)", "mlp"),
+    "fedavg_logreg": ("logistic_regression", "fedavg_logreg_global",
+                      "FedAvg Logistic Regression (homogeneous)", "logistic_regression"),
+}
+
+
 def run(ctx: RunContext) -> None:
-    job = build_job(ctx, "fedavg")
+    fedavg_model, system, label, model_type = VARIANTS[ctx.method]
+    # the plain fedavg job is left exactly as before; only fedavg_logreg sets fedavg.model
+    override = None if fedavg_model == "mlp" else {**ctx.cfg["fedavg"], "model": fedavg_model}
+    job = build_job(ctx, "fedavg", fedavg=override)
     launch(ctx, job)
     jd = job_dir(ctx)
     summary = read_json(jd / "server" / "rounds.json")
@@ -31,7 +48,7 @@ def run(ctx: RunContext) -> None:
         p_val = np.load(jd / "server" / f"global_round_{rnd:02d}" / "val_probs.npy")
         val_ap[rnd] = average_precision(y_val, p_val)
         row = {"seed": ctx.seed, "scenario": ctx.scenario, "method": ctx.method,
-               "variant": ctx.variant, "round": rnd, "system": "fedavg_global",
+               "variant": ctx.variant, "round": rnd, "system": system,
                "val_average_precision": val_ap[rnd], "val_roc_auc": gv.get("val-roc-auc"),
                "val_precision@0.5": gv.get("val-precision@0.5"),
                "val_recall@0.5": gv.get("val-recall@0.5"), "val_f1@0.5": gv.get("val-f1@0.5"),
@@ -57,13 +74,13 @@ def run(ctx: RunContext) -> None:
     client_fit = sum(m.get("fit-seconds", 0.0) for r in summary["rounds"]
                      for m in (r.get("client_metrics") or {}).values())
     comm = summary["total_bytes_up"] + summary["total_bytes_down"]
-    ctx.runtime["fedavg"] = {"federation_wall_seconds": summary["wall_seconds"],
+    ctx.runtime[ctx.method] = {"federation_wall_seconds": summary["wall_seconds"],
                              "client_fit_seconds_total": client_fit,
                              "test_inference_seconds": infer_s,
                              "bytes_up": summary["total_bytes_up"],
                              "bytes_down": summary["total_bytes_down"],
                              "num_parameters": summary["num_parameters"]}
-    record_system(ctx, system="fedavg_global", label="FedAvg MLP (homogeneous)", model_type="mlp",
+    record_system(ctx, system=system, label=label, model_type=model_type,
                   p_val=p_val, p_test=p_test,
                   extra={"selected_round": chosen, "model_selection": policy,
                          "train_seconds": client_fit, "test_inference_seconds": infer_s,

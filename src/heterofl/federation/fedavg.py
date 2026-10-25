@@ -1,5 +1,10 @@
 """Homogeneous baseline: Flower FedAvg over a shared PyTorch MLP.
 
+``fedavg.model`` selects the shared network: ``mlp`` (default, the Bank C
+architecture) or ``logistic_regression`` -- the same MLP class with no hidden
+layers, i.e. a single linear layer + sigmoid trained with BCE, so FedAvg
+averages exactly the logistic-regression coefficients and intercept.
+
 Flower's ``FedAvg`` computes ``sum_k (n_k / sum_j n_j) * theta_k`` with ``n_k``
 taken from each reply's ``num-examples`` metric. ``StrictFedAvg`` keeps that
 aggregation untouched but (a) refuses to aggregate if any of the expected
@@ -32,6 +37,19 @@ from heterofl.utils.io import load_npz, write_json
 from heterofl.utils.logging import get_logger
 
 log = get_logger("federation.fedavg")
+
+FEDAVG_MODELS = ("mlp", "logistic_regression")
+
+
+def fedavg_mlp_params(job: FederatedJob) -> dict:
+    """MLP hyperparameters of the shared FedAvg network."""
+    name = job.fedavg.get("model", "mlp")
+    if name not in FEDAVG_MODELS:
+        raise ValueError(f"fedavg.model must be one of {FEDAVG_MODELS}, got {name!r}")
+    params = dict(job.models["mlp"])
+    if name == "logistic_regression":
+        params.update(hidden_sizes=[], dropout=0.0)
+    return params
 
 
 class StrictFedAvg(FedAvg):
@@ -92,7 +110,7 @@ def make_evaluate_fn(job: FederatedJob, server_dir: Path, rounds: dict[int, dict
     Xv, yv = view["X"], view["y"]
 
     def evaluate(server_round: int, arrays: ArrayRecord) -> MetricRecord:
-        model = MLPModel(job.models["mlp"], model_seed(job.seed, "fedavg_global", "mlp"),
+        model = MLPModel(fedavg_mlp_params(job), model_seed(job.seed, "fedavg_global", "mlp"),
                          n_features=Xv.shape[1], n_jobs=job.num_cpus_per_client)
         model.set_state_dict(arrays.to_torch_state_dict())
         p = model.predict_proba(Xv)
@@ -115,7 +133,7 @@ def make_evaluate_fn(job: FederatedJob, server_dir: Path, rounds: dict[int, dict
 def run_fedavg(grid: Grid, job: FederatedJob, node_to_bank: dict[int, str]) -> dict:
     server_dir = Path(job.job_dir) / "server"
     server_dir.mkdir(parents=True, exist_ok=True)
-    init = MLPModel(job.models["mlp"], model_seed(job.seed, "fedavg_global", "mlp"))
+    init = MLPModel(fedavg_mlp_params(job), model_seed(job.seed, "fedavg_global", "mlp"))
     strategy = StrictFedAvg(len(job.clients), node_to_bank)
     t0 = time.perf_counter()
     strategy.start(
@@ -132,6 +150,7 @@ def run_fedavg(grid: Grid, job: FederatedJob, node_to_bank: dict[int, str]) -> d
         r.setdefault("bytes_down", 0)
     summary = {
         "mode": "fedavg",
+        "fedavg_model": job.fedavg.get("model", "mlp"),
         "num_rounds": job.num_rounds,
         "num_parameters": init.num_parameters(),
         "rounds": rounds,

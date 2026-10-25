@@ -35,11 +35,13 @@ proxy set (`configs/paper_random_proxy.yaml`).
 
 ## Installation
 
-Tested with CPython 3.12.14 on macOS arm64 (12-core CPU, no GPU).
-Several pinned dependencies (xgboost 3.4.1, numpy 2.5.4, scipy 1.18.1)
-require Python ≥ 3.12. POSIX only (macOS/Linux): the federation launcher
-kills timed-out simulations by process group (`os.killpg`) and the results
-directory lock uses `fcntl`.
+Tested with CPython 3.12.14 on macOS arm64 (12-core CPU, no GPU), and with
+CPython 3.11.0 on Windows 11 (see *Windows* below). The pinned set in
+`requirements.txt` / `requirements-lock.txt` (xgboost 3.4.1, numpy 2.5.4,
+scipy 1.18.1) requires Python ≥ 3.12; `pyproject.toml` accepts both tested
+version sets. The federation launcher kills timed-out simulations by process
+group (`os.killpg`; `taskkill /T` on Windows) and the results directory lock
+uses `fcntl` (`msvcrt.locking` on Windows).
 
 ```bash
 uv venv --python 3.12 .venv            # or: python3.12 -m venv .venv
@@ -50,6 +52,23 @@ uv pip install -e ".[dev]"              # or: pip install -e ".[dev]"
 
 `requirements.txt` pins the direct dependencies; `requirements-lock.txt`
 is the full transitive lock of the tested environment.
+
+**Windows / Python 3.11.** Tested on Windows 11, CPython 3.11.0, Flower 1.26.1
+(all tests pass). `requirements-py311.txt` lists the tested versions:
+
+```powershell
+pip install -r requirements-py311.txt
+pip install --no-deps -e .
+python -m pytest -q
+python -m heterofl.experiments.runner --config configs/smoke.yaml
+```
+
+Use `python -m ...` (the `scripts/*.sh` wrappers need a POSIX shell). If `pip`
+fails with `CERTIFICATE_VERIFY_FAILED` (a TLS-intercepting proxy or antivirus),
+export the Windows root certificates to a PEM file and point `PIP_CERT` at it
+instead of disabling verification. Results produced on Windows / 3.11 use other
+library versions than the macOS reference run, so compare them only with runs
+from the same environment (the provenance checks record the versions).
 
 ### Dataset
 

@@ -298,4 +298,4 @@ def test_kd_simulation_with_an_extra_unassigned_node(prepared, tmp_path):
     status = read_json(ctx.out_dir / "federation" / "server" / "status.json")
     assert status["status"] == "completed"
     assert sorted(status["node_to_bank"].values()) == ["A", "B", "C"]
-    assert "Ignoring 1 node(s) without a bank" in (ctx.out_dir / "federation.log").read_text()
+    assert "Ignoring 1 node(s) without a bank" in (ctx.out_dir / "federation.log").read_text(encoding="utf-8")

@@ -189,7 +189,7 @@ def test_report_provenance_flags_legacy_and_dirty_runs(tmp_path):
            "source_dirty": False, "source_diff_sha256": None, "source_verified": True}
     clean = pd.DataFrame([row, row])
     assert provenance_summary(tmp_path, clean)["verified"] is False          # no experiment.json
-    (tmp_path / "experiment.json").write_text('{"experiment_hash": "e", "config_hash": "c"}')
+    (tmp_path / "experiment.json").write_text('{"experiment_hash": "e", "config_hash": "c"}', encoding="utf-8")
     assert provenance_summary(tmp_path, clean)["verified"] is True
     dirty = pd.DataFrame([row, {**row, "source_dirty": True, "source_diff_sha256": "d",
                                 "source_verified": False}])

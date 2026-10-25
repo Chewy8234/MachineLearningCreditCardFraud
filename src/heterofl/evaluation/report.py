@@ -37,10 +37,12 @@ from heterofl.utils.logging import get_logger
 
 log = get_logger("report")
 
-MODEL_SHORT = {"xgboost": "XGB", "random_forest": "RF", "mlp": "MLP", "committee": "committee"}
+MODEL_SHORT = {"xgboost": "XGB", "random_forest": "RF", "mlp": "MLP", "committee": "committee",
+               "logistic_regression": "LogReg"}
 SYSTEM_ORDER = ["bank_A", "bank_B", "bank_C", "centralized_xgboost", "centralized_random_forest",
                 "centralized_mlp", "ensemble_equal", "ensemble_validation_ap", "fedavg_global",
-                "fedxgb_global", "kd_bank_A", "kd_bank_B", "kd_bank_C", "kd_committee"]
+                "fedavg_logreg_global", "fedxgb_global", "kd_bank_A", "kd_bank_B", "kd_bank_C",
+                "kd_committee"]
 METRICS = ["test_average_precision", "test_pr_auc_trapezoid", "test_roc_auc",
            "test_at_val_threshold_precision", "test_at_val_threshold_recall",
            "test_at_val_threshold_f1", "test_at_val_threshold_balanced_accuracy",
@@ -52,7 +54,8 @@ METRICS = ["test_average_precision", "test_pr_auc_trapezoid", "test_roc_auc",
 COMPARISONS = [("kd_committee", "ensemble_equal"), ("kd_committee", "fedavg_global"),
                ("ensemble_equal", "fedavg_global"), ("kd_bank_A", "bank_A"),
                ("kd_bank_B", "bank_B"), ("kd_bank_C", "bank_C"),
-               ("kd_committee", "fedxgb_global"), ("ensemble_equal", "fedxgb_global")]
+               ("kd_committee", "fedxgb_global"), ("ensemble_equal", "fedxgb_global"),
+               ("kd_committee", "fedavg_logreg_global")]
 
 
 # --------------------------------------------------------------------------- collection
@@ -64,7 +67,7 @@ def _family(row) -> str:
         return "Centralized (ref.)"
     if s.startswith("ensemble"):
         return "Ensemble (no KD)"
-    if s == "fedavg_global":
+    if s in ("fedavg_global", "fedavg_logreg_global"):
         return "FedAvg"
     if s == "fedxgb_global":
         return "Fed. XGB bagging"
@@ -85,6 +88,8 @@ def _short(row) -> str:
         return "Ensemble (val-AP wtd)"
     if s == "fedavg_global":
         return "FedAvg MLP"
+    if s == "fedavg_logreg_global":
+        return "FedAvg LogReg"
     if s == "fedxgb_global":
         return "Fed. XGB bagging"
     if s == "kd_committee":
@@ -327,7 +332,8 @@ def tables_main(summ: pd.DataFrame, scen_primary: list[str], scen_all: list[str]
                  "tab:main", tdir, "table3_main")
 
     rows = []
-    systems = ["bank_A", "bank_B", "bank_C", "ensemble_equal", "fedavg_global", "fedxgb_global",
+    systems = ["bank_A", "bank_B", "bank_C", "ensemble_equal", "fedavg_global",
+               "fedavg_logreg_global", "fedxgb_global",
                "kd_bank_A", "kd_bank_B", "kd_bank_C", "kd_committee", "centralized_xgboost"]
     for s in systems:
         d = summ[summ["system"] == s]
@@ -412,7 +418,8 @@ def table6(mdf: pd.DataFrame, parts: pd.DataFrame, tdir: Path,
             train, infer = g["train_seconds"].sum(), g["test_inference_seconds"].sum()
             comm = g["communication_bytes"].fillna(0).sum() if method != "centralized" else np.nan
             wall = (g["federation_wall_seconds"].iloc[0]
-                    if "federation_wall_seconds" in g and method == "fedavg" else np.nan)
+                    if "federation_wall_seconds" in g and method in ("fedavg", "fedavg_logreg")
+                    else np.nan)
             if method == "fedxgb_bagging":
                 comm = g["communication_bytes"].sum()
         rows.append({"seed": seed, "scenario": sc, "method": method, "train_seconds": train,
@@ -425,11 +432,13 @@ def table6(mdf: pd.DataFrame, parts: pd.DataFrame, tdir: Path,
               "centralized": ("Centralized (3 models, ref.)", "Centralized (ref.)"),
               "ensemble": ("Ensemble (no KD)", "Ensemble (no KD)"),
               "fedavg": ("FedAvg", "FedAvg"), "heterogeneous_kd": (f"{kind} KD", "KD committee"),
-              "fedxgb_bagging": ("Federated XGBoost bagging", "Fed. XGB bagging")}
+              "fedxgb_bagging": ("Federated XGBoost bagging", "Fed. XGB bagging"),
+              "fedavg_logreg": ("FedAvg Logistic Regression", "FedAvg")}
     num = ["train_seconds", "test_inference_seconds", "communication_mb", "federation_wall_seconds"]
     agg = df.groupby("method")[num].agg(["mean", "std"])
     out = []
-    for m in ["local", "centralized", "ensemble", "fedavg", "fedxgb_bagging", "heterogeneous_kd"]:
+    for m in ["local", "centralized", "ensemble", "fedavg", "fedavg_logreg", "fedxgb_bagging",
+              "heterogeneous_kd"]:
         if m not in agg.index:
             continue
         a = agg.loc[m]
@@ -533,7 +542,8 @@ def bootstrap_stats(prim: pd.DataFrame, cfg: dict | None, rdir: Path) -> tuple[p
         if not preds:
             continue
         y = next(iter(preds.values()))["y_test"]
-        for s in ["fedavg_global", "fedxgb_global", "ensemble_equal", "kd_committee", "bank_A",
+        for s in ["fedavg_global", "fedavg_logreg_global", "fedxgb_global", "ensemble_equal",
+                  "kd_committee", "bank_A",
                   "bank_B", "bank_C",
                   "kd_bank_A", "kd_bank_B", "kd_bank_C", "centralized_xgboost"]:
             if s in preds:
@@ -602,7 +612,7 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
     if cfg is None and (root / "config.yaml").is_file():
         import yaml
 
-        cfg = yaml.safe_load((root / "config.yaml").read_text())
+        cfg = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
     tdir, fdir, rdir = root / "tables", root / "figures", root / "reports"
     for d in (tdir, fdir, rdir):
         d.mkdir(parents=True, exist_ok=True)
@@ -610,7 +620,7 @@ def generate_report(root: str | Path, cfg: dict | None = None) -> Path:
     status, mdf, rounds, parts = data["status"], data["metrics"], data["rounds"], data["partitions"]
     write_csv(rdir / "run_status.csv", status)
     if mdf.empty:
-        (rdir / "summary.md").write_text("# Report\n\nNo completed runs found; nothing to report.\n")
+        (rdir / "summary.md").write_text("# Report\n\nNo completed runs found; nothing to report.\n", encoding="utf-8")
         log.warning("No completed runs under %s", root)
         return rdir
     prov = provenance_summary(root, status)
@@ -740,4 +750,4 @@ def _summary_md(root, rdir, cfg, status, summ, pairs, diff, t5, abl, hdf, figs, 
     for k, v in figs.items():
         L.append(f"- {k}: " + (", ".join(Path(p).name for p in v) if v else "not generated (no data)"))
     L += ["", "## Tables", ""] + [f"- `{p.name}`" for p in sorted((root / "tables").glob("*.tex"))]
-    (rdir / "summary.md").write_text("\n".join(L) + "\n")
+    (rdir / "summary.md").write_text("\n".join(L) + "\n", encoding="utf-8")

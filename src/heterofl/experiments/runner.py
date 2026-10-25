@@ -70,10 +70,10 @@ from heterofl.utils.reproducibility import (
 log = get_logger("runner")
 
 METHOD_ORDER = ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd",
-                "fedxgb_bagging")
+                "fedxgb_bagging", "fedavg_logreg")
 METHOD_MODULES = {"local": local, "centralized": centralized, "ensemble": ensemble,
                   "fedavg": homogeneous, "heterogeneous_kd": heterogeneous,
-                  "fedxgb_bagging": fedxgb}
+                  "fedxgb_bagging": fedxgb, "fedavg_logreg": homogeneous}
 
 SKIP_STATUS = {"skip": "skipped-completed", "skip-other-source": "skipped-completed-other-source"}
 
@@ -146,7 +146,7 @@ class Runner:
 
     # ------------------------------------------------------------------ bookkeeping
     def _ledger(self, event: dict) -> None:
-        with (self.root / "ledger.jsonl").open("a") as fh:
+        with (self.root / "ledger.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps({"time": _now(), "invocation": self.invocation_id, **event}) + "\n")
 
     def _archive(self, out: Path, reason: str) -> None:

@@ -35,6 +35,7 @@ from flwr.clientapp import ClientApp
 from heterofl.distillation.trainers import distill_update, initial_fit
 from heterofl.evaluation.metrics import average_precision
 from heterofl.federation import messages as M
+from heterofl.federation.fedavg import fedavg_mlp_params
 from heterofl.federation.job import ClientSpec, FederatedJob, FederationError, load_job
 from heterofl.federation.state import STATE_KEY, ClientStateStore
 from heterofl.models.mlp import MLPModel
@@ -125,7 +126,7 @@ def fedavg_train(msg: Message, context: Context) -> Message:
     rnd = int(msg.content[M.CONFIG]["server-round"])
     _maybe_inject_failure(job, spec, rnd)
     X, y = _bank_data(job.view_dir, spec.bank)
-    model = MLPModel(job.models["mlp"], derive_seed(job.seed, "fedavg-client", spec.bank, rnd),
+    model = MLPModel(fedavg_mlp_params(job), derive_seed(job.seed, "fedavg-client", spec.bank, rnd),
                      n_features=X.shape[1], n_jobs=job.num_cpus_per_client)
     model.set_state_dict(msg.content[M.ARRAYS].to_torch_state_dict())
     info = model.fit(X, y, epochs=int(job.fedavg["local_epochs"]))

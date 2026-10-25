@@ -96,16 +96,16 @@ def test_exponent_override_is_a_float():
 
 
 def test_models_config_override_takes_effect(tmp_path):
-    models = yaml.safe_load((ROOT / "configs" / "models.yaml").read_text())
+    models = yaml.safe_load((ROOT / "configs" / "models.yaml").read_text(encoding="utf-8"))
     models["xgboost"]["max_depth"] = 2
     alt = tmp_path / "models_alt.yaml"
-    alt.write_text(yaml.safe_dump(models))
+    alt.write_text(yaml.safe_dump(models), encoding="utf-8")
     cfg = load_config(SMOKE, [f"models_config={alt}"])
     # the profile's own models: section still overrides the file (smoke sets depth 4)
     assert cfg["models"]["xgboost"]["max_depth"] == 4
     assert cfg["models_config"] == str(alt)
     models["xgboost"]["gamma"] = 0.5
-    alt.write_text(yaml.safe_dump(models))
+    alt.write_text(yaml.safe_dump(models), encoding="utf-8")
     assert load_config(SMOKE, [f"models_config={alt}"])["models"]["xgboost"]["gamma"] == 0.5
 
 
@@ -121,15 +121,16 @@ def test_defaults_are_materialised():
 def _write_profile(tmp_path, name: str, body: dict) -> str:
     d = tmp_path / "configs"
     d.mkdir(exist_ok=True)
-    (d / "models.yaml").write_text((ROOT / "configs" / "models.yaml").read_text())
+    (d / "models.yaml").write_text((ROOT / "configs" / "models.yaml").read_text(encoding="utf-8"),
+                                  encoding="utf-8")
     p = d / name
-    p.write_text(yaml.safe_dump(body, sort_keys=False))
+    p.write_text(yaml.safe_dump(body, sort_keys=False), encoding="utf-8")
     return str(p)
 
 
 def test_equivalent_configurations_hash_identically(tmp_path):
     flat = load_config(ROOT / "configs" / "paper.yaml")
-    body = yaml.safe_load((ROOT / "configs" / "paper.yaml").read_text())
+    body = yaml.safe_load((ROOT / "configs" / "paper.yaml").read_text(encoding="utf-8"))
     # (1) same content, keys in a different order, (2) defaults spelled out explicitly
     reordered = dict(reversed(list(body.items())))
     reordered["kd"] = dict(reversed(list(reordered["kd"].items())))
@@ -196,5 +197,5 @@ def test_dump_config_is_atomic(tmp_path):
     cfg = load_config(SMOKE)
     target = tmp_path / "config.yaml"
     dump_config(cfg, target)
-    assert yaml.safe_load(target.read_text())["profile"] == cfg["profile"]
+    assert yaml.safe_load(target.read_text(encoding="utf-8"))["profile"] == cfg["profile"]
     assert [p.name for p in tmp_path.iterdir()] == ["config.yaml"]  # no temp files left

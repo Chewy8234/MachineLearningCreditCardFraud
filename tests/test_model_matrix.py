@@ -63,7 +63,7 @@ def test_matrix_runs_and_reports(prepared, tmp_path):
         loc = local[(local.bank == c["bank"]) & (local.model == c["model"])]
         assert r0 == loc.average_precision.item()
 
-    text = mm.write_report(out, cfg).read_text()
+    text = mm.write_report(out, cfg).read_text(encoding="utf-8")
     for needle in ("1. Local only", "2. Centralized", "3. Homogeneous FL",
                    "4. Committee (KD)", "Committee per bank", "Test PR-AUC by round"):
         assert needle in text

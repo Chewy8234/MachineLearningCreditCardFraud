@@ -77,6 +77,6 @@ def bold_best(cells: list[str], values: list[float], *, higher_is_better: bool =
 
 def write_table(path: Path, tex: str, df: pd.DataFrame | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.with_suffix(".tex").write_text(tex)
+    path.with_suffix(".tex").write_text(tex, encoding="utf-8")
     if df is not None:
         df.to_csv(path.with_suffix(".csv"), index=False)

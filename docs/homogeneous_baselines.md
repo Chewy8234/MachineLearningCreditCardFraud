@@ -12,6 +12,7 @@ protocol fixed and change only the banks' model families.
 | — | FedAvg MLP, 5 rounds × 2 epochs (existing) | `paper.yaml` | `fedavg_global` |
 | — | FedAvg MLP, 5 rounds × 4 epochs (epoch-matched control) | `homog_mlp.yaml`, ablation `fedavg_20_epochs` | `fedavg_global` |
 | — | Federated XGBoost, tree bagging | `homog_xgboost.yaml`, method `fedxgb_bagging` | `fedxgb_global` |
+| — | FedAvg logistic regression (MLP with no hidden layers, 5 rounds × 2 epochs) | `fedavg_logreg.yaml`, method `fedavg_logreg` | `fedavg_logreg_global` |
 | H1 | 3×XGBoost KD committee | `homog_xgboost.yaml` | `kd_committee`, `kd_bank_X` |
 | H2 | 3×Random Forest KD committee | `homog_random_forest.yaml` | `kd_committee`, `kd_bank_X` |
 | H3 | 3×MLP KD committee | `homog_mlp.yaml` | `kd_committee`, `kd_bank_X` |
@@ -53,6 +54,14 @@ model. `b0` = logit of the pooled fraud rate (two count scalars per bank). It ru
 **in-process** (no Flower transport). Communication is the serialised JSON size of the
 trees the protocol would send, so it is an estimate. Banks' trees within a round fit the
 same residual independently and can overshoot; that is inherent to the scheme.
+
+**FedAvg logistic regression (`fedavg_logreg`).** The FedAvg protocol and settings of
+`fedavg_global` (genuine Flower transport, example-weighted parameter averaging, same
+rounds and local epochs), with the shared network replaced by the MLP class without
+hidden layers -- a linear layer + sigmoid trained with BCE, i.e. logistic regression,
+whose 30 coefficients and intercept are averaged. Its own profile
+(`configs/fedavg_logreg.yaml`) differs from `paper.yaml` only in `methods`, so the
+paper profile's configuration (and its run identities) is unchanged.
 
 **Federated Random Forest: not implemented.** A forest assembled from trees each bank
 grows on its own data (`model_matrix.py`'s "federated forest") is mathematically an

@@ -117,11 +117,11 @@ def test_source_patch_includes_untracked_files(tmp_path):
     def git(*a):
         subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
     git("init", "-q")
-    (tmp_path / "tracked.py").write_text("x = 1\n")
+    (tmp_path / "tracked.py").write_text("x = 1\n", encoding="utf-8")
     git("add", "tracked.py")
     git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
-    (tmp_path / "tracked.py").write_text("x = 2\n")
-    (tmp_path / "new_module.py").write_text("y = 3\n")
+    (tmp_path / "tracked.py").write_text("x = 2\n", encoding="utf-8")
+    (tmp_path / "new_module.py").write_text("y = 3\n", encoding="utf-8")
     patch = source_patch(tmp_path).decode()
     assert "+x = 2" in patch and "new_module.py" in patch and "+y = 3" in patch
 
@@ -196,7 +196,7 @@ def test_homogeneous_committee_end_to_end(tmp_path, synthetic_csv, family):
     from heterofl.evaluation.report import generate_report
 
     rdir = generate_report(res)  # reads the configuration the runner stored
-    assert "homogeneous 3x" in (res / "tables" / "table5_per_bank.tex").read_text()
+    assert "homogeneous 3x" in (res / "tables" / "table5_per_bank.tex").read_text(encoding="utf-8")
     assert (rdir / "summary.md").is_file()
 
 
@@ -223,7 +223,7 @@ def test_cross_profile_comparison_pairs_on_identical_partitions(tmp_path, synthe
                   ["methods=[local, ensemble, heterogeneous_kd, fedxgb_bagging]",
                    "fedxgb.trees_per_round=3"])
     summary = compare({"hetero": het, "xgboost": xgb_dir}, tmp_path / "cmp")
-    text = summary.read_text()
+    text = summary.read_text(encoding="utf-8")
     assert "Identical partitions and test labels" in text
     pairs = pd.read_csv(tmp_path / "cmp" / "reports" / "paired_differences.csv")
     got = set(zip(pairs["a"], pairs["b"], strict=True))

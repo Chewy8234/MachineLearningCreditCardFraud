@@ -17,7 +17,7 @@ import numpy as np
 import yaml
 
 VALID_METHODS = ("local", "centralized", "ensemble", "fedavg", "heterogeneous_kd",
-                 "fedxgb_bagging")
+                 "fedxgb_bagging", "fedavg_logreg")
 ABLATION_METHODS = ("heterogeneous_kd", "ensemble", "fedavg")
 VALID_MODEL_TYPES = ("xgboost", "random_forest", "mlp")
 VALID_TEACHERS = ("leave_one_out", "full_committee")
@@ -48,7 +48,7 @@ SECTION_KEYS = {
     "partitioning": {"num_clients", "min_fraud_per_client", "min_legit_per_client", "max_retries"},
     "federation": {"num_rounds", "client_num_cpus", "client_num_gpus", "round_timeout",
                    "job_timeout"},
-    "fedavg": {"local_epochs"},
+    "fedavg": {"local_epochs", "model"},   # model: only set by the fedavg_logreg method
     "fedxgb": {"trees_per_round"},   # optional: only read by the fedxgb_bagging method
     "kd": {"lambda_kd", "teacher", "teacher_weighting", "prob_clip", "tree_update",
            "xgb_trees_per_round", "mlp_epochs_per_round", "proxy_batch_size"},
@@ -306,6 +306,8 @@ def validate_config(cfg: dict) -> None:
     _number(fed.get("job_timeout"), "federation.job_timeout", low=0, low_open=True,
             allow_none=True)
     _number(cfg["fedavg"].get("local_epochs"), "fedavg.local_epochs", integer=True, low=1)
+    if cfg["fedavg"].get("model", "mlp") not in ("mlp", "logistic_regression"):
+        raise ConfigError("fedavg.model must be mlp|logistic_regression")
     if "fedxgb_bagging" in cfg["methods"]:
         _number((cfg.get("fedxgb") or {}).get("trees_per_round"), "fedxgb.trees_per_round",
                 integer=True, low=1)
@@ -374,7 +376,7 @@ def validate_models(cfg: dict, where: str = "") -> None:
         raise ConfigError(f"{where}models must be a mapping of model type -> hyperparameters")
     _unknown(models, VALID_MODEL_TYPES, f"{where}models")
     needed = {c["model"] for c in cfg["clients"]}
-    if "fedavg" in cfg.get("methods", []):
+    if {"fedavg", "fedavg_logreg"} & set(cfg.get("methods", [])):
         needed.add("mlp")
     if "fedxgb_bagging" in cfg.get("methods", []):
         needed.add("xgboost")
@@ -482,7 +484,7 @@ def dump_config(cfg: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
     try:
-        with os.fdopen(fd, "w") as fh:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             yaml.safe_dump(cfg, fh, sort_keys=False)
         os.replace(tmp, path)
     except BaseException:

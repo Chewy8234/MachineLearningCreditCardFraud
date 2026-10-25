@@ -82,7 +82,7 @@ def test_smoke_profile_runs_all_conditions_and_reports(tmp_path, synthetic_csv):
     assert (res / "tables" / "table3_main.csv").is_file()
     assert (res / "figures" / "fig2_ap_comparison.png").is_file()
     assert (res / "figures" / "fig2_ap_comparison.pdf").is_file()
-    assert "NOT FOR PUBLICATION" in (res / "reports" / "summary.md").read_text()
+    assert "NOT FOR PUBLICATION" in (res / "reports" / "summary.md").read_text(encoding="utf-8")
 
     # resume: a second invocation skips everything that already completed
     assert main(_args(tmp_path, synthetic_csv) + ["--no-report"]) == 0
@@ -98,7 +98,7 @@ def test_failed_run_is_recorded_and_safely_rerun(tmp_path, synthetic_csv):
     assert rc == 1
     kd = tmp_path / "results" / "seed_42" / "moderate_non_iid" / "heterogeneous_kd"
     st = read_json(kd / "status.json")
-    assert st["status"] == "failed" and "Injected failure" in (kd / "federation.log").read_text()
+    assert st["status"] == "failed" and "Injected failure" in (kd / "federation.log").read_text(encoding="utf-8")
     assert not (kd / "metrics.csv").exists()  # no invented metrics
     # rerun without the fault: failed run archived (diagnostics kept), new run completes
     assert main(base + ["--methods", "local", "ensemble", "heterogeneous_kd", "--no-report"]) == 0

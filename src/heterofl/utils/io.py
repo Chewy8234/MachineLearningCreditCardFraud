@@ -45,7 +45,7 @@ def write_json(path: str | Path, data: Any) -> None:
     payload = json.dumps(_sanitize(json.loads(json.dumps(data, default=_default))),
                          indent=2, sort_keys=False)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
-    with os.fdopen(fd, "w") as fh:
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(payload)
     os.replace(tmp, path)
 

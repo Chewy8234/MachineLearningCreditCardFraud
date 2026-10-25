@@ -786,4 +786,4 @@ def _summary(out, rdir, checks, prov, summ, ref, pairs, pb, div, costdf, scen, l
     L += ["## Figures", ""] + [f"- {k}: " + (", ".join(Path(x).name for x in v) if v else "none")
                                for k, v in figs.items()]
     L += ["", "## Tables", ""] + [f"- `{x.name}`" for x in sorted((out / "tables").glob("*.tex"))]
-    (rdir / "summary.md").write_text("\n".join(L) + "\n")
+    (rdir / "summary.md").write_text("\n".join(L) + "\n", encoding="utf-8")

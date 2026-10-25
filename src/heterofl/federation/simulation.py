@@ -81,13 +81,23 @@ def space_free_python() -> str:
     return str(link / rel)
 
 
+def _kill_tree(proc: subprocess.Popen) -> None:
+    """Kill the child and every process it started (Ray workers included)."""
+    if sys.platform == "win32":
+        # Windows has no process groups/killpg; taskkill /T walks the process tree
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                       capture_output=True, check=False)
+    else:
+        os.killpg(proc.pid, signal.SIGKILL)
+
+
 def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = None,
                       num_supernodes: int | None = None) -> None:
     """Run a job in a fresh interpreter; raise with the log tail on failure.
 
-    POSIX only: the child gets its own session (``start_new_session``) so that on
-    timeout or interruption the whole process group -- including Ray's workers --
-    is killed with ``os.killpg``.
+    The child gets its own session (``start_new_session``) so that on timeout or
+    interruption the whole process tree -- including Ray's workers -- is killed:
+    with ``os.killpg`` on POSIX, with ``taskkill /T`` on Windows.
     """
     # Put this package's source root on PYTHONPATH explicitly, so the child (and
     # the Ray workers, which inherit its environment) can import heterofl even if
@@ -98,7 +108,7 @@ def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = No
     env = {**os.environ, "FLWR_TELEMETRY_ENABLED": "0", "RAY_DEDUP_LOGS": "0",
            "PYTHONUNBUFFERED": "1", "PYTHONPATH": pythonpath}
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("w") as fh:
+    with log_path.open("w", encoding="utf-8") as fh:
         # own session/process group: on timeout the child AND its Ray processes are killed
         cmd = [space_free_python(), "-m", "heterofl.federation.simulation", "--job", str(job_path)]
         if num_supernodes:
@@ -108,15 +118,15 @@ def launch_subprocess(job_path: Path, log_path: Path, timeout: float | None = No
         try:
             proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
+            _kill_tree(proc)
             proc.wait()
             raise RuntimeError(f"Federated simulation exceeded job_timeout={timeout}s and was "
                                f"killed; log: {log_path}") from None
         except BaseException:
-            os.killpg(proc.pid, signal.SIGKILL)
+            _kill_tree(proc)
             raise
     if proc.returncode != 0:
-        tail = "".join(log_path.read_text(errors="replace").splitlines(True)[-40:])
+        tail = "".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines(True)[-40:])
         raise RuntimeError(f"Federated simulation failed (exit {proc.returncode}); "
                            f"log: {log_path}\n--- log tail ---\n{tail}")
 

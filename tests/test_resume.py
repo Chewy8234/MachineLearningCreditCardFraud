@@ -101,14 +101,14 @@ def test_changed_configuration_is_refused_and_results_untouched(tmp_path, synthe
     before = _digest_tree(root)
     assert main(_args(tmp_path, synthetic_csv, [override])) == 4
     assert _digest_tree(root) == before
-    assert "Refusing to run" in (root / "runner.log").read_text()
+    assert "Refusing to run" in (root / "runner.log").read_text(encoding="utf-8")
 
 
 def test_changed_models_yaml_is_refused(tmp_path, synthetic_csv, completed):    # 3
-    models = yaml.safe_load((ROOT / "configs" / "models.yaml").read_text())
+    models = yaml.safe_load((ROOT / "configs" / "models.yaml").read_text(encoding="utf-8"))
     models["random_forest"]["min_samples_leaf"] = 3
     alt = tmp_path / "models_alt.yaml"
-    alt.write_text(yaml.safe_dump(models))
+    alt.write_text(yaml.safe_dump(models), encoding="utf-8")
     before = _digest_tree(tmp_path / "results")
     assert main(_args(tmp_path, synthetic_csv, [f"models_config={alt}"])) == 4
     assert read_json(completed / "status.json")["status"] == "completed"
@@ -169,9 +169,9 @@ def _legacy_tree(root):
     run = root / "seed_42" / "moderate_non_iid" / "local"
     run.mkdir(parents=True)
     write_json(run / "status.json", {"status": "completed", "run_id": "old"})
-    (run / "metrics.csv").write_text("system,test_average_precision\nbank_A,0.9\n")
-    (root / "config.yaml").write_text("profile: legacy\n")
-    (root / "ledger.jsonl").write_text("{}\n")
+    (run / "metrics.csv").write_text("system,test_average_precision\nbank_A,0.9\n", encoding="utf-8")
+    (root / "config.yaml").write_text("profile: legacy\n", encoding="utf-8")
+    (root / "ledger.jsonl").write_text("{}\n", encoding="utf-8")
     return run
 
 
