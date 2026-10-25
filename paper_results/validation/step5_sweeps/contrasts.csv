@@ -1,0 +1,249 @@
+group,comparison,scope,n_cells,mean_diff,n_pos,p_signflip
+p10pct,KD committee - lambda0 committee,iid,3,0.002682596225690744,3,0.25
+p10pct,KD committee - lambda0 committee,moderate_non_iid,3,0.004538679174689124,3,0.25
+p10pct,KD committee - lambda0 committee,severe_non_iid,3,-0.01451926699283875,0,0.25
+p10pct,KD committee - lambda0 committee,pooled,9,-0.002432663864152961,6,0.49609375
+p10pct,KD committee - ensemble_equal,iid,3,0.003983821007567852,2,0.5
+p10pct,KD committee - ensemble_equal,moderate_non_iid,3,0.006252238155703009,3,0.25
+p10pct,KD committee - ensemble_equal,severe_non_iid,3,-0.005053150822597126,1,0.5
+p10pct,KD committee - ensemble_equal,pooled,9,0.0017276361135579116,6,0.515625
+p10pct,KD committee - FedAvg MLP,iid,3,0.039275966542433226,3,0.25
+p10pct,KD committee - FedAvg MLP,moderate_non_iid,3,0.0542452310014051,3,0.25
+p10pct,KD committee - FedAvg MLP,severe_non_iid,3,0.019519688074459435,2,0.75
+p10pct,KD committee - FedAvg MLP,pooled,9,0.03768029520609925,8,0.01953125
+p10pct,ensemble_equal - FedAvg MLP,iid,3,0.03529214553486537,3,0.25
+p10pct,ensemble_equal - FedAvg MLP,moderate_non_iid,3,0.0479929928457021,3,0.25
+p10pct,ensemble_equal - FedAvg MLP,severe_non_iid,3,0.024572838897056564,2,0.5
+p10pct,ensemble_equal - FedAvg MLP,pooled,9,0.03595265909254134,8,0.015625
+p10pct,KD committee - best local (oracle),iid,3,0.013262622814738076,3,0.25
+p10pct,KD committee - best local (oracle),moderate_non_iid,3,0.013598211656457507,3,0.25
+p10pct,KD committee - best local (oracle),severe_non_iid,3,0.0017776134017883916,1,1.0
+p10pct,KD committee - best local (oracle),pooled,9,0.009546149290994657,7,0.1015625
+p10pct,KD committee - best local (val-chosen),iid,3,0.013262622814738076,3,0.25
+p10pct,KD committee - best local (val-chosen),moderate_non_iid,3,0.013598211656457507,3,0.25
+p10pct,KD committee - best local (val-chosen),severe_non_iid,3,0.004339445942461199,1,1.0
+p10pct,KD committee - best local (val-chosen),pooled,9,0.010400093471218928,7,0.1015625
+p10pct,lambda0 committee - ensemble_equal,iid,3,0.0013012247818771083,2,0.5
+p10pct,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.0017135589810138852,2,0.5
+p10pct,lambda0 committee - ensemble_equal,severe_non_iid,3,0.009466116170241623,2,0.5
+p10pct,lambda0 committee - ensemble_equal,pooled,9,0.0041602999777108724,6,0.0703125
+p10pct,KD bank C(MLP) - lambda0 C,iid,3,0.038878445625250856,3,0.25
+p10pct,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,0.011339349596827994,2,0.5
+p10pct,KD bank C(MLP) - lambda0 C,severe_non_iid,3,-0.012478137612873788,1,0.5
+p10pct,KD bank C(MLP) - lambda0 C,pooled,9,0.012579885869735019,6,0.234375
+p10pct,KD bank A(XGB) - lambda0 A,iid,3,0.0016051469966881966,2,0.75
+p10pct,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,0.02376113660416031,3,0.25
+p10pct,KD bank A(XGB) - lambda0 A,severe_non_iid,3,0.01010546967532903,2,0.5
+p10pct,KD bank A(XGB) - lambda0 A,pooled,9,0.011823917758725846,7,0.1328125
+p10pct,KD bank B(RF) - lambda0 B,iid,3,0.002585696660604856,1,1.0
+p10pct,KD bank B(RF) - lambda0 B,moderate_non_iid,3,0.009281595605219795,3,0.25
+p10pct,KD bank B(RF) - lambda0 B,severe_non_iid,3,-0.013423403142171386,0,0.25
+p10pct,KD bank B(RF) - lambda0 B,pooled,9,-0.0005187036254489118,4,0.89453125
+p10pct,lambda0 bank C(MLP) - local C,iid,3,-0.013554214761133795,0,0.25
+p10pct,lambda0 bank C(MLP) - local C,moderate_non_iid,3,-0.0067711821174242974,1,0.5
+p10pct,lambda0 bank C(MLP) - local C,severe_non_iid,3,0.0229849482979441,2,0.5
+p10pct,lambda0 bank C(MLP) - local C,pooled,9,0.0008865171397953361,3,0.91796875
+p10pct,KD bank C(MLP) - local C,iid,3,0.02532423086411706,3,0.25
+p10pct,KD bank C(MLP) - local C,moderate_non_iid,3,0.004568167479403695,2,0.5
+p10pct,KD bank C(MLP) - local C,severe_non_iid,3,0.010506810685070311,3,0.25
+p10pct,KD bank C(MLP) - local C,pooled,9,0.013466403009530356,8,0.0078125
+p10pct,KD bank A(XGB) - local A,iid,3,0.0016051469966881966,2,0.75
+p10pct,KD bank A(XGB) - local A,moderate_non_iid,3,0.02376113660416031,3,0.25
+p10pct,KD bank A(XGB) - local A,severe_non_iid,3,0.01010546967532903,2,0.5
+p10pct,KD bank A(XGB) - local A,pooled,9,0.011823917758725846,7,0.1328125
+p10pct,KD bank B(RF) - local B,iid,3,0.002585696660604856,1,1.0
+p10pct,KD bank B(RF) - local B,moderate_non_iid,3,0.009281595605219795,3,0.25
+p10pct,KD bank B(RF) - local B,severe_non_iid,3,-0.013423403142171386,0,0.25
+p10pct,KD bank B(RF) - local B,pooled,9,-0.0005187036254489118,4,0.89453125
+p1pct,KD committee - lambda0 committee,iid,3,-6.459011667806862e-05,1,1.0
+p1pct,KD committee - lambda0 committee,moderate_non_iid,3,-0.006592862706836715,0,0.25
+p1pct,KD committee - lambda0 committee,severe_non_iid,3,0.0021177636010460596,2,0.75
+p1pct,KD committee - lambda0 committee,pooled,9,-0.0015132297408229078,3,0.578125
+p1pct,KD committee - ensemble_equal,iid,3,-0.001534260116657878,1,0.5
+p1pct,KD committee - ensemble_equal,moderate_non_iid,3,-0.001890197950450423,1,0.75
+p1pct,KD committee - ensemble_equal,severe_non_iid,3,0.0041091293971029135,2,0.5
+p1pct,KD committee - ensemble_equal,pooled,9,0.00022822377666487093,4,0.9453125
+p1pct,KD committee - best local (oracle),iid,3,0.0014620131733706538,1,1.0
+p1pct,KD committee - best local (oracle),moderate_non_iid,3,0.0030556540603258187,2,0.5
+p1pct,KD committee - best local (oracle),severe_non_iid,3,0.017900494710361443,3,0.25
+p1pct,KD committee - best local (oracle),pooled,9,0.007472720648019305,6,0.0390625
+p1pct,KD committee - best local (val-chosen),iid,3,0.0032245556919240728,1,1.0
+p1pct,KD committee - best local (val-chosen),moderate_non_iid,3,0.01411626088240118,2,0.5
+p1pct,KD committee - best local (val-chosen),severe_non_iid,3,0.018987728889456174,3,0.25
+p1pct,KD committee - best local (val-chosen),pooled,9,0.01210951515459381,6,0.0390625
+p1pct,lambda0 committee - ensemble_equal,iid,3,-0.0014696699999798095,1,0.5
+p1pct,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.004702664756386292,2,0.5
+p1pct,lambda0 committee - ensemble_equal,severe_non_iid,3,0.0019913657960568543,3,0.25
+p1pct,lambda0 committee - ensemble_equal,pooled,9,0.0017414535174877788,6,0.2421875
+p1pct,KD bank C(MLP) - lambda0 C,iid,3,0.005935270356201301,3,0.25
+p1pct,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,-0.004087617807230844,2,1.0
+p1pct,KD bank C(MLP) - lambda0 C,severe_non_iid,3,-0.0014280003819242177,1,1.0
+p1pct,KD bank C(MLP) - lambda0 C,pooled,9,0.00013988405568207994,6,0.97265625
+p1pct,KD bank A(XGB) - lambda0 A,iid,3,-0.0050028000452046655,1,0.5
+p1pct,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,-0.01384938738426004,0,0.25
+p1pct,KD bank A(XGB) - lambda0 A,severe_non_iid,3,0.0016168138327566917,2,0.75
+p1pct,KD bank A(XGB) - lambda0 A,pooled,9,-0.005745124532236005,3,0.1328125
+p1pct,KD bank B(RF) - lambda0 B,iid,3,0.003934750513000036,3,0.25
+p1pct,KD bank B(RF) - lambda0 B,moderate_non_iid,3,0.005555254551959894,2,0.5
+p1pct,KD bank B(RF) - lambda0 B,severe_non_iid,3,0.002748306941513697,2,0.75
+p1pct,KD bank B(RF) - lambda0 B,pooled,9,0.0040794373354912095,7,0.04296875
+p1pct,lambda0 bank C(MLP) - local C,iid,3,0.008805226799252256,3,0.25
+p1pct,lambda0 bank C(MLP) - local C,moderate_non_iid,3,0.0336926849399292,3,0.25
+p1pct,lambda0 bank C(MLP) - local C,severe_non_iid,3,0.040970314838810785,3,0.25
+p1pct,lambda0 bank C(MLP) - local C,pooled,9,0.02782274219266408,9,0.00390625
+p1pct,KD bank C(MLP) - local C,iid,3,0.014740497155453558,3,0.25
+p1pct,KD bank C(MLP) - local C,moderate_non_iid,3,0.029605067132698355,3,0.25
+p1pct,KD bank C(MLP) - local C,severe_non_iid,3,0.03954231445688657,3,0.25
+p1pct,KD bank C(MLP) - local C,pooled,9,0.02796262624834616,9,0.00390625
+p1pct,KD bank A(XGB) - local A,iid,3,-0.0050028000452046655,1,0.5
+p1pct,KD bank A(XGB) - local A,moderate_non_iid,3,-0.01384938738426004,0,0.25
+p1pct,KD bank A(XGB) - local A,severe_non_iid,3,0.0016168138327566917,2,0.75
+p1pct,KD bank A(XGB) - local A,pooled,9,-0.005745124532236005,3,0.1328125
+p1pct,KD bank B(RF) - local B,iid,3,0.003934750513000036,3,0.25
+p1pct,KD bank B(RF) - local B,moderate_non_iid,3,0.005555254551959894,2,0.5
+p1pct,KD bank B(RF) - local B,severe_non_iid,3,0.002748306941513697,2,0.75
+p1pct,KD bank B(RF) - local B,pooled,9,0.0040794373354912095,7,0.04296875
+p3pct,KD committee - lambda0 committee,iid,3,2.8088223725316237e-05,1,1.0
+p3pct,KD committee - lambda0 committee,moderate_non_iid,3,-0.00034187666050389254,1,0.75
+p3pct,KD committee - lambda0 committee,severe_non_iid,3,0.002310565877694737,2,0.5
+p3pct,KD committee - lambda0 committee,pooled,9,0.0006655924803053868,4,0.45703125
+p3pct,KD committee - ensemble_equal,iid,3,0.00646884146793536,3,0.25
+p3pct,KD committee - ensemble_equal,moderate_non_iid,3,0.001200717048650472,2,0.75
+p3pct,KD committee - ensemble_equal,severe_non_iid,3,0.004258548542286911,1,1.0
+p3pct,KD committee - ensemble_equal,pooled,9,0.003976035686290914,6,0.171875
+p3pct,KD committee - best local (oracle),iid,3,0.01984994582786474,3,0.25
+p3pct,KD committee - best local (oracle),moderate_non_iid,3,0.01764691682237011,2,0.5
+p3pct,KD committee - best local (oracle),severe_non_iid,3,0.011066916565998267,3,0.25
+p3pct,KD committee - best local (oracle),pooled,9,0.01618792640541104,8,0.0078125
+p3pct,KD committee - best local (val-chosen),iid,3,0.02977396407348006,3,0.25
+p3pct,KD committee - best local (val-chosen),moderate_non_iid,3,0.01764691682237011,2,0.5
+p3pct,KD committee - best local (val-chosen),severe_non_iid,3,0.015342790185983168,3,0.25
+p3pct,KD committee - best local (val-chosen),pooled,9,0.020921223693944446,8,0.0078125
+p3pct,lambda0 committee - ensemble_equal,iid,3,0.006440753244210044,3,0.25
+p3pct,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.0015425937091543644,1,1.0
+p3pct,lambda0 committee - ensemble_equal,severe_non_iid,3,0.0019479826645921738,1,1.0
+p3pct,lambda0 committee - ensemble_equal,pooled,9,0.0033104432059855274,5,0.22265625
+p3pct,KD bank C(MLP) - lambda0 C,iid,3,0.006435518135863442,2,0.75
+p3pct,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,0.04528086680914811,3,0.25
+p3pct,KD bank C(MLP) - lambda0 C,severe_non_iid,3,0.020096880423845016,2,0.75
+p3pct,KD bank C(MLP) - lambda0 C,pooled,9,0.02393775512295219,7,0.0703125
+p3pct,KD bank A(XGB) - lambda0 A,iid,3,-0.00035031736388772366,2,1.0
+p3pct,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,-0.011348963059069997,0,0.25
+p3pct,KD bank A(XGB) - lambda0 A,severe_non_iid,3,0.0056789144209229425,2,0.75
+p3pct,KD bank A(XGB) - lambda0 A,pooled,9,-0.0020067886673449265,4,0.6171875
+p3pct,KD bank B(RF) - lambda0 B,iid,3,-0.0014134471408943083,2,1.0
+p3pct,KD bank B(RF) - lambda0 B,moderate_non_iid,3,-0.016157709949751742,0,0.25
+p3pct,KD bank B(RF) - lambda0 B,severe_non_iid,3,-0.0014916519055336124,1,0.75
+p3pct,KD bank B(RF) - lambda0 B,pooled,9,-0.006354269665393221,3,0.1171875
+p3pct,lambda0 bank C(MLP) - local C,iid,3,0.013979123457123451,2,0.75
+p3pct,lambda0 bank C(MLP) - local C,moderate_non_iid,3,0.0040788940140503716,1,1.0
+p3pct,lambda0 bank C(MLP) - local C,severe_non_iid,3,0.003694276069215241,2,0.75
+p3pct,lambda0 bank C(MLP) - local C,pooled,9,0.007250764513463021,5,0.35546875
+p3pct,KD bank C(MLP) - local C,iid,3,0.020414641592986893,2,0.5
+p3pct,KD bank C(MLP) - local C,moderate_non_iid,3,0.049359760823198484,2,0.5
+p3pct,KD bank C(MLP) - local C,severe_non_iid,3,0.023791156493060257,2,0.5
+p3pct,KD bank C(MLP) - local C,pooled,9,0.03118851963641521,6,0.046875
+p3pct,KD bank A(XGB) - local A,iid,3,-0.00035031736388772366,2,1.0
+p3pct,KD bank A(XGB) - local A,moderate_non_iid,3,-0.011348963059069997,0,0.25
+p3pct,KD bank A(XGB) - local A,severe_non_iid,3,0.0056789144209229425,2,0.75
+p3pct,KD bank A(XGB) - local A,pooled,9,-0.0020067886673449265,4,0.6171875
+p3pct,KD bank B(RF) - local B,iid,3,-0.0014134471408943083,2,1.0
+p3pct,KD bank B(RF) - local B,moderate_non_iid,3,-0.016157709949751742,0,0.25
+p3pct,KD bank B(RF) - local B,severe_non_iid,3,-0.0014916519055336124,1,0.75
+p3pct,KD bank B(RF) - local B,pooled,9,-0.006354269665393221,3,0.1171875
+p25pct,KD committee - lambda0 committee,iid,3,0.00082350315300365,2,0.75
+p25pct,KD committee - lambda0 committee,moderate_non_iid,3,0.0041782769853729125,2,0.75
+p25pct,KD committee - lambda0 committee,severe_non_iid,3,0.001593887463650745,2,0.75
+p25pct,KD committee - lambda0 committee,pooled,9,0.0021985558673424358,6,0.28515625
+p25pct,KD committee - ensemble_equal,iid,3,0.0014683355851975073,1,1.0
+p25pct,KD committee - ensemble_equal,moderate_non_iid,3,0.011053709340241672,3,0.25
+p25pct,KD committee - ensemble_equal,severe_non_iid,3,0.0020079481541229738,2,0.75
+p25pct,KD committee - ensemble_equal,pooled,9,0.004843331026520718,6,0.09375
+p25pct,KD committee - best local (oracle),iid,3,0.016874561287426815,3,0.25
+p25pct,KD committee - best local (oracle),moderate_non_iid,3,0.013855502654499308,3,0.25
+p25pct,KD committee - best local (oracle),severe_non_iid,3,-0.006188201929028765,1,0.75
+p25pct,KD committee - best local (oracle),pooled,9,0.008180620670965786,7,0.13671875
+p25pct,KD committee - best local (val-chosen),iid,3,0.01917680681805885,3,0.25
+p25pct,KD committee - best local (val-chosen),moderate_non_iid,3,0.017498539988913524,3,0.25
+p25pct,KD committee - best local (val-chosen),severe_non_iid,3,0.004866372103031018,1,1.0
+p25pct,KD committee - best local (val-chosen),pooled,9,0.013847239636667797,7,0.0546875
+p25pct,lambda0 committee - ensemble_equal,iid,3,0.0006448324321938573,1,1.0
+p25pct,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.00687543235486876,2,0.5
+p25pct,lambda0 committee - ensemble_equal,severe_non_iid,3,0.0004140606904722288,1,1.0
+p25pct,lambda0 committee - ensemble_equal,pooled,9,0.002644775159178282,4,0.3203125
+p25pct,KD bank C(MLP) - lambda0 C,iid,3,0.006032897762654477,2,0.75
+p25pct,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,0.04038685905465663,2,0.75
+p25pct,KD bank C(MLP) - lambda0 C,severe_non_iid,3,0.01837179794146789,2,0.75
+p25pct,KD bank C(MLP) - lambda0 C,pooled,9,0.021597184919592997,6,0.3125
+p25pct,KD bank A(XGB) - lambda0 A,iid,3,0.01928750599779261,3,0.25
+p25pct,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,0.001292863389060021,2,0.75
+p25pct,KD bank A(XGB) - lambda0 A,severe_non_iid,3,0.005608351714993187,1,1.0
+p25pct,KD bank A(XGB) - lambda0 A,pooled,9,0.008729573700615272,6,0.1484375
+p25pct,KD bank B(RF) - lambda0 B,iid,3,-0.00021810426507114697,1,1.0
+p25pct,KD bank B(RF) - lambda0 B,moderate_non_iid,3,0.005830356875122493,2,0.5
+p25pct,KD bank B(RF) - lambda0 B,severe_non_iid,3,0.016969060834367222,3,0.25
+p25pct,KD bank B(RF) - lambda0 B,pooled,9,0.007527104481472856,6,0.07421875
+p25pct,lambda0 bank C(MLP) - local C,iid,3,0.0033840667605953647,2,0.75
+p25pct,lambda0 bank C(MLP) - local C,moderate_non_iid,3,0.09439459254474915,2,0.5
+p25pct,lambda0 bank C(MLP) - local C,severe_non_iid,3,0.04522360649409666,2,0.75
+p25pct,lambda0 bank C(MLP) - local C,pooled,9,0.04766742193314706,6,0.15234375
+p25pct,KD bank C(MLP) - local C,iid,3,0.009416964523249841,3,0.25
+p25pct,KD bank C(MLP) - local C,moderate_non_iid,3,0.13478145159940577,3,0.25
+p25pct,KD bank C(MLP) - local C,severe_non_iid,3,0.06359540443556455,1,1.0
+p25pct,KD bank C(MLP) - local C,pooled,9,0.06926460685274007,7,0.046875
+p25pct,KD bank A(XGB) - local A,iid,3,0.01928750599779261,3,0.25
+p25pct,KD bank A(XGB) - local A,moderate_non_iid,3,0.001292863389060021,2,0.75
+p25pct,KD bank A(XGB) - local A,severe_non_iid,3,0.005608351714993187,1,1.0
+p25pct,KD bank A(XGB) - local A,pooled,9,0.008729573700615272,6,0.1484375
+p25pct,KD bank B(RF) - local B,iid,3,-0.00021810426507114697,1,1.0
+p25pct,KD bank B(RF) - local B,moderate_non_iid,3,0.005830356875122493,2,0.5
+p25pct,KD bank B(RF) - local B,severe_non_iid,3,0.016969060834367222,3,0.25
+p25pct,KD bank B(RF) - local B,pooled,9,0.007527104481472856,6,0.07421875
+p1pct_random,KD committee - lambda0 committee,iid,3,-0.0020863299354927736,1,0.5
+p1pct_random,KD committee - lambda0 committee,moderate_non_iid,3,-0.016890432019858143,1,0.75
+p1pct_random,KD committee - lambda0 committee,severe_non_iid,3,0.004191184095724387,3,0.25
+p1pct_random,KD committee - lambda0 committee,pooled,9,-0.004928525953208844,5,0.75
+p1pct_random,KD committee - ensemble_equal,iid,3,-0.0016193462689968463,1,0.5
+p1pct_random,KD committee - ensemble_equal,moderate_non_iid,3,0.00930040251524907,2,0.5
+p1pct_random,KD committee - ensemble_equal,severe_non_iid,3,0.007065200817310324,2,0.5
+p1pct_random,KD committee - ensemble_equal,pooled,9,0.004915419021187516,5,0.15234375
+p1pct_random,KD committee - best local (oracle),iid,3,-0.0027860461258000604,1,0.75
+p1pct_random,KD committee - best local (oracle),moderate_non_iid,3,-0.0003727120691322157,1,1.0
+p1pct_random,KD committee - best local (oracle),severe_non_iid,3,0.018913687175086496,3,0.25
+p1pct_random,KD committee - best local (oracle),pooled,9,0.00525164299338474,5,0.37890625
+p1pct_random,KD committee - best local (val-chosen),iid,3,-0.0027860461258000604,1,0.75
+p1pct_random,KD committee - best local (val-chosen),moderate_non_iid,3,0.001555031049275642,1,1.0
+p1pct_random,KD committee - best local (val-chosen),severe_non_iid,3,0.020177941240736613,3,0.25
+p1pct_random,KD committee - best local (val-chosen),pooled,9,0.0063156420547373976,5,0.30078125
+p1pct_random,lambda0 committee - ensemble_equal,iid,3,0.00046698366649592743,1,1.0
+p1pct_random,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.026190834535107215,2,0.5
+p1pct_random,lambda0 committee - ensemble_equal,severe_non_iid,3,0.002874016721585937,2,0.5
+p1pct_random,lambda0 committee - ensemble_equal,pooled,9,0.009843944974396359,5,0.23046875
+p1pct_random,KD bank C(MLP) - lambda0 C,iid,3,-3.014405220710022e-05,1,0.75
+p1pct_random,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,-0.014621214657423645,1,0.5
+p1pct_random,KD bank C(MLP) - lambda0 C,severe_non_iid,3,0.021562066947649134,3,0.25
+p1pct_random,KD bank C(MLP) - lambda0 C,pooled,9,0.002303569412672796,5,0.77734375
+p1pct_random,KD bank A(XGB) - lambda0 A,iid,3,-0.004279103684144858,1,0.75
+p1pct_random,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,-0.026982665072530405,0,0.25
+p1pct_random,KD bank A(XGB) - lambda0 A,severe_non_iid,3,-7.404151775828686e-05,1,1.0
+p1pct_random,KD bank A(XGB) - lambda0 A,pooled,9,-0.010445270091477851,2,0.09375
+p1pct_random,KD bank B(RF) - lambda0 B,iid,3,-0.0004026061500621199,1,0.5
+p1pct_random,KD bank B(RF) - lambda0 B,moderate_non_iid,3,-0.003640384954400148,1,0.75
+p1pct_random,KD bank B(RF) - lambda0 B,severe_non_iid,3,0.0008757398667605202,3,0.25
+p1pct_random,KD bank B(RF) - lambda0 B,pooled,9,-0.0010557504125672493,5,0.77734375
+p1pct_random,lambda0 bank C(MLP) - local C,iid,3,0.007928185423693224,1,1.0
+p1pct_random,lambda0 bank C(MLP) - local C,moderate_non_iid,3,0.027789326634778844,2,0.5
+p1pct_random,lambda0 bank C(MLP) - local C,severe_non_iid,3,0.019641792195569902,2,0.5
+p1pct_random,lambda0 bank C(MLP) - local C,pooled,9,0.01845310141801399,5,0.11328125
+p1pct_random,KD bank C(MLP) - local C,iid,3,0.007898041371486123,2,0.75
+p1pct_random,KD bank C(MLP) - local C,moderate_non_iid,3,0.013168111977355198,2,0.75
+p1pct_random,KD bank C(MLP) - local C,severe_non_iid,3,0.041203859143219036,2,0.5
+p1pct_random,KD bank C(MLP) - local C,pooled,9,0.020756670830686788,6,0.14453125
+p1pct_random,KD bank A(XGB) - local A,iid,3,-0.004279103684144858,1,0.75
+p1pct_random,KD bank A(XGB) - local A,moderate_non_iid,3,-0.026982665072530405,0,0.25
+p1pct_random,KD bank A(XGB) - local A,severe_non_iid,3,-7.404151775828686e-05,1,1.0
+p1pct_random,KD bank A(XGB) - local A,pooled,9,-0.010445270091477851,2,0.09375
+p1pct_random,KD bank B(RF) - local B,iid,3,-0.0004026061500621199,1,0.5
+p1pct_random,KD bank B(RF) - local B,moderate_non_iid,3,-0.003640384954400148,1,0.75
+p1pct_random,KD bank B(RF) - local B,severe_non_iid,3,0.0008757398667605202,3,0.25
+p1pct_random,KD bank B(RF) - local B,pooled,9,-0.0010557504125672493,5,0.77734375

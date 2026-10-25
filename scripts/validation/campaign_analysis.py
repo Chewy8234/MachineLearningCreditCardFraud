@@ -28,7 +28,9 @@ SCEN = ["iid", "moderate_non_iid", "severe_non_iid"]
 def collect(path: Path) -> pd.DataFrame:
     allm = path / "reports" / "all_metrics.csv"      # committed paper_results layout
     frames = [pd.read_csv(allm)] if allm.is_file() else \
-        [pd.read_csv(f) for f in path.glob("seed_*/*/**/metrics.csv")]
+        [pd.read_csv(f) for f in list(path.glob("seed_*/*/**/metrics.csv")) +
+                         list(path.glob("unit_*/seed_*/*/**/metrics.csv"))
+                         if "_archive" not in f.parts]
     if not frames:
         return pd.DataFrame()
     d = pd.concat(frames, ignore_index=True)
@@ -70,6 +72,11 @@ COMPARISONS = {
     "ensemble_equal - FedAvg MLP": (("primary", "ensemble_equal"), ("primary", "fedavg_global")),
     "KD committee - best local (oracle)": ("oracle", None),
     "KD committee - best local (val-chosen)": ("valchosen", None),
+    "lambda0 committee - ensemble_equal": (("kd_lambda_0.0", "kd_committee"), ("primary", "ensemble_equal")),
+    "KD bank C(MLP) - lambda0 C": (("primary", "kd_bank_C"), ("kd_lambda_0.0", "kd_bank_C")),
+    "KD bank A(XGB) - lambda0 A": (("primary", "kd_bank_A"), ("kd_lambda_0.0", "kd_bank_A")),
+    "KD bank B(RF) - lambda0 B": (("primary", "kd_bank_B"), ("kd_lambda_0.0", "kd_bank_B")),
+    "lambda0 bank C(MLP) - local C": (("kd_lambda_0.0", "kd_bank_C"), ("primary", "bank_C")),
     "KD bank C(MLP) - local C": (("primary", "kd_bank_C"), ("primary", "bank_C")),
     "KD bank A(XGB) - local A": (("primary", "kd_bank_A"), ("primary", "bank_A")),
     "KD bank B(RF) - local B": (("primary", "kd_bank_B"), ("primary", "bank_B")),

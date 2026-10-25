@@ -1,0 +1,113 @@
+group,comparison,scope,n_cells,mean_diff,n_pos,p_signflip
+default,KD committee - lambda0 committee,iid,3,0.002682596225690744,3,0.25
+default,KD committee - lambda0 committee,moderate_non_iid,3,0.004538679174689124,3,0.25
+default,KD committee - lambda0 committee,severe_non_iid,3,-0.01451926699283875,0,0.25
+default,KD committee - lambda0 committee,pooled,9,-0.002432663864152961,6,0.49609375
+default,KD committee - ensemble_equal,iid,3,0.003983821007567852,2,0.5
+default,KD committee - ensemble_equal,moderate_non_iid,3,0.006252238155703009,3,0.25
+default,KD committee - ensemble_equal,severe_non_iid,3,-0.005053150822597126,1,0.5
+default,KD committee - ensemble_equal,pooled,9,0.0017276361135579116,6,0.515625
+default,KD committee - FedAvg MLP,iid,3,0.039275966542433226,3,0.25
+default,KD committee - FedAvg MLP,moderate_non_iid,3,0.0542452310014051,3,0.25
+default,KD committee - FedAvg MLP,severe_non_iid,3,0.019519688074459435,2,0.75
+default,KD committee - FedAvg MLP,pooled,9,0.03768029520609925,8,0.01953125
+default,ensemble_equal - FedAvg MLP,iid,3,0.03529214553486537,3,0.25
+default,ensemble_equal - FedAvg MLP,moderate_non_iid,3,0.0479929928457021,3,0.25
+default,ensemble_equal - FedAvg MLP,severe_non_iid,3,0.024572838897056564,2,0.5
+default,ensemble_equal - FedAvg MLP,pooled,9,0.03595265909254134,8,0.015625
+default,KD committee - best local (oracle),iid,3,0.013262622814738076,3,0.25
+default,KD committee - best local (oracle),moderate_non_iid,3,0.013598211656457507,3,0.25
+default,KD committee - best local (oracle),severe_non_iid,3,0.0017776134017883916,1,1.0
+default,KD committee - best local (oracle),pooled,9,0.009546149290994657,7,0.1015625
+default,KD committee - best local (val-chosen),iid,3,0.013262622814738076,3,0.25
+default,KD committee - best local (val-chosen),moderate_non_iid,3,0.013598211656457507,3,0.25
+default,KD committee - best local (val-chosen),severe_non_iid,3,0.004339445942461199,1,1.0
+default,KD committee - best local (val-chosen),pooled,9,0.010400093471218928,7,0.1015625
+default,lambda0 committee - ensemble_equal,iid,3,0.0013012247818771083,2,0.5
+default,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.0017135589810138852,2,0.5
+default,lambda0 committee - ensemble_equal,severe_non_iid,3,0.009466116170241623,2,0.5
+default,lambda0 committee - ensemble_equal,pooled,9,0.0041602999777108724,6,0.0703125
+default,KD bank C(MLP) - lambda0 C,iid,3,0.038878445625250856,3,0.25
+default,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,0.011339349596827994,2,0.5
+default,KD bank C(MLP) - lambda0 C,severe_non_iid,3,-0.012478137612873788,1,0.5
+default,KD bank C(MLP) - lambda0 C,pooled,9,0.012579885869735019,6,0.234375
+default,KD bank A(XGB) - lambda0 A,iid,3,0.0016051469966881966,2,0.75
+default,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,0.02376113660416031,3,0.25
+default,KD bank A(XGB) - lambda0 A,severe_non_iid,3,0.01010546967532903,2,0.5
+default,KD bank A(XGB) - lambda0 A,pooled,9,0.011823917758725846,7,0.1328125
+default,KD bank B(RF) - lambda0 B,iid,3,0.002585696660604856,1,1.0
+default,KD bank B(RF) - lambda0 B,moderate_non_iid,3,0.009281595605219795,3,0.25
+default,KD bank B(RF) - lambda0 B,severe_non_iid,3,-0.013423403142171386,0,0.25
+default,KD bank B(RF) - lambda0 B,pooled,9,-0.0005187036254489118,4,0.89453125
+default,lambda0 bank C(MLP) - local C,iid,3,-0.013554214761133795,0,0.25
+default,lambda0 bank C(MLP) - local C,moderate_non_iid,3,-0.0067711821174242974,1,0.5
+default,lambda0 bank C(MLP) - local C,severe_non_iid,3,0.0229849482979441,2,0.5
+default,lambda0 bank C(MLP) - local C,pooled,9,0.0008865171397953361,3,0.91796875
+default,KD bank C(MLP) - local C,iid,3,0.02532423086411706,3,0.25
+default,KD bank C(MLP) - local C,moderate_non_iid,3,0.004568167479403695,2,0.5
+default,KD bank C(MLP) - local C,severe_non_iid,3,0.010506810685070311,3,0.25
+default,KD bank C(MLP) - local C,pooled,9,0.013466403009530356,8,0.0078125
+default,KD bank A(XGB) - local A,iid,3,0.0016051469966881966,2,0.75
+default,KD bank A(XGB) - local A,moderate_non_iid,3,0.02376113660416031,3,0.25
+default,KD bank A(XGB) - local A,severe_non_iid,3,0.01010546967532903,2,0.5
+default,KD bank A(XGB) - local A,pooled,9,0.011823917758725846,7,0.1328125
+default,KD bank B(RF) - local B,iid,3,0.002585696660604856,1,1.0
+default,KD bank B(RF) - local B,moderate_non_iid,3,0.009281595605219795,3,0.25
+default,KD bank B(RF) - local B,severe_non_iid,3,-0.013423403142171386,0,0.25
+default,KD bank B(RF) - local B,pooled,9,-0.0005187036254489118,4,0.89453125
+tuned,KD committee - lambda0 committee,iid,3,0.0034355524323913165,3,0.25
+tuned,KD committee - lambda0 committee,moderate_non_iid,3,-0.003394417366789989,1,0.5
+tuned,KD committee - lambda0 committee,severe_non_iid,3,0.00915404753851671,2,0.5
+tuned,KD committee - lambda0 committee,pooled,9,0.0030650608680393462,6,0.3359375
+tuned,KD committee - ensemble_equal,iid,3,-0.0008576829543742356,0,0.25
+tuned,KD committee - ensemble_equal,moderate_non_iid,3,-0.00027261152334889793,2,1.0
+tuned,KD committee - ensemble_equal,severe_non_iid,3,-0.00016807354352140388,1,1.0
+tuned,KD committee - ensemble_equal,pooled,9,-0.0004327893404148458,3,0.796875
+tuned,KD committee - FedAvg MLP,iid,3,4.841149791941687e-05,1,1.0
+tuned,KD committee - FedAvg MLP,moderate_non_iid,3,0.02097994308989933,3,0.25
+tuned,KD committee - FedAvg MLP,severe_non_iid,3,0.020542692571741683,3,0.25
+tuned,KD committee - FedAvg MLP,pooled,9,0.013857015719853476,7,0.015625
+tuned,ensemble_equal - FedAvg MLP,iid,3,0.0009060944522936524,1,1.0
+tuned,ensemble_equal - FedAvg MLP,moderate_non_iid,3,0.021252554613248226,3,0.25
+tuned,ensemble_equal - FedAvg MLP,severe_non_iid,3,0.020710766115263086,3,0.25
+tuned,ensemble_equal - FedAvg MLP,pooled,9,0.014289805060268322,7,0.015625
+tuned,KD committee - best local (oracle),iid,3,0.015794710574802678,3,0.25
+tuned,KD committee - best local (oracle),moderate_non_iid,3,0.008378587779023042,2,0.5
+tuned,KD committee - best local (oracle),severe_non_iid,3,0.012478133084728449,3,0.25
+tuned,KD committee - best local (oracle),pooled,9,0.01221714381285139,8,0.0078125
+tuned,KD committee - best local (val-chosen),iid,3,0.015794710574802678,3,0.25
+tuned,KD committee - best local (val-chosen),moderate_non_iid,3,0.012629800819599154,2,0.5
+tuned,KD committee - best local (val-chosen),severe_non_iid,3,0.015980718197084687,3,0.25
+tuned,KD committee - best local (val-chosen),pooled,9,0.014801743197162173,8,0.0078125
+tuned,lambda0 committee - ensemble_equal,iid,3,-0.004293235386765552,0,0.25
+tuned,lambda0 committee - ensemble_equal,moderate_non_iid,3,0.003121805843441091,3,0.25
+tuned,lambda0 committee - ensemble_equal,severe_non_iid,3,-0.009322121082038115,0,0.25
+tuned,lambda0 committee - ensemble_equal,pooled,9,-0.003497850208454192,3,0.1328125
+tuned,KD bank C(MLP) - lambda0 C,iid,3,0.0461091745459404,3,0.25
+tuned,KD bank C(MLP) - lambda0 C,moderate_non_iid,3,0.0064386703716226385,1,1.0
+tuned,KD bank C(MLP) - lambda0 C,severe_non_iid,3,0.025713608944897565,3,0.25
+tuned,KD bank C(MLP) - lambda0 C,pooled,9,0.026087151287486867,7,0.015625
+tuned,KD bank A(XGB) - lambda0 A,iid,3,0.005799001166852465,2,0.5
+tuned,KD bank A(XGB) - lambda0 A,moderate_non_iid,3,0.00965055457601697,1,1.0
+tuned,KD bank A(XGB) - lambda0 A,severe_non_iid,3,0.29471320003745144,3,0.25
+tuned,KD bank A(XGB) - lambda0 A,pooled,9,0.10338758526010697,6,0.05078125
+tuned,KD bank B(RF) - lambda0 B,iid,3,0.004111355510840187,2,0.75
+tuned,KD bank B(RF) - lambda0 B,moderate_non_iid,3,0.007834286344815386,2,0.5
+tuned,KD bank B(RF) - lambda0 B,severe_non_iid,3,0.012970185028689185,3,0.25
+tuned,KD bank B(RF) - lambda0 B,pooled,9,0.008305275628114919,7,0.08203125
+tuned,lambda0 bank C(MLP) - local C,iid,3,-0.033973371802691554,0,0.25
+tuned,lambda0 bank C(MLP) - local C,moderate_non_iid,3,0.005074922127977703,2,0.75
+tuned,lambda0 bank C(MLP) - local C,severe_non_iid,3,-0.008921401827100403,1,0.75
+tuned,lambda0 bank C(MLP) - local C,pooled,9,-0.012606617167271418,3,0.1796875
+tuned,KD bank C(MLP) - local C,iid,3,0.012135802743248844,3,0.25
+tuned,KD bank C(MLP) - local C,moderate_non_iid,3,0.011513592499600342,3,0.25
+tuned,KD bank C(MLP) - local C,severe_non_iid,3,0.016792207117797164,2,0.75
+tuned,KD bank C(MLP) - local C,pooled,9,0.01348053412021545,8,0.015625
+tuned,KD bank A(XGB) - local A,iid,3,0.005799001166852465,2,0.5
+tuned,KD bank A(XGB) - local A,moderate_non_iid,3,0.00965055457601697,1,1.0
+tuned,KD bank A(XGB) - local A,severe_non_iid,3,0.29471320003745144,3,0.25
+tuned,KD bank A(XGB) - local A,pooled,9,0.10338758526010697,6,0.05078125
+tuned,KD bank B(RF) - local B,iid,3,0.004111355510840187,2,0.75
+tuned,KD bank B(RF) - local B,moderate_non_iid,3,0.007834286344815386,2,0.5
+tuned,KD bank B(RF) - local B,severe_non_iid,3,0.012970185028689185,3,0.25
+tuned,KD bank B(RF) - local B,pooled,9,0.008305275628114919,7,0.08203125
