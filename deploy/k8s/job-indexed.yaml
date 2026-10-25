@@ -1,0 +1,64 @@
+# Step 2 (only after validation passes): all 12 units (3 seeds x 4 scenarios) of configs/paper.yaml.
+# Each index writes /results/<RUN_TAG>/unit_<idx>_*; rerunning the Job resumes (completed runs are skipped).
+# Start with parallelism 2-4 and raise it only after checking the quota and CPU/RAM utilisation (see guide).
+# RUN_TAG encodes the hardware setting; never merge different tags into one timing table.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: heterofl-paper-cpu12
+  namespace: fgcu-vinodahuja-aml
+spec:
+  completions: 12
+  parallelism: 4
+  completionMode: Indexed
+  backoffLimit: 12
+  ttlSecondsAfterFinished: 259200
+  # Preemption/eviction of an opportunistic pod is not an experiment failure: don't count it.
+  # (Needs a recent Kubernetes; if the apply is rejected, delete this block and rely on backoffLimit.)
+  podFailurePolicy:
+    rules:
+      - action: Ignore
+        onPodConditions:
+          - type: DisruptionTarget
+  template:
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 60
+      priorityClassName: opportunistic
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: feature.node.kubernetes.io/pci-10de.present
+                    operator: NotIn
+                    values: ["true"]
+      containers:
+        - name: unit
+          image: gitlab-registry.nrp-nautilus.io/REPLACE_GROUP/REPLACE_PROJECT:REPLACE_TAG
+          workingDir: /app
+          command: ["python", "deploy/run_unit.py", "--config", "configs/paper.yaml"]
+          env:
+            - {name: RUN_TAG, value: "nrp-paper-cpu12-v1"}
+            - {name: CLIENT_NUM_CPUS, value: "12"}   # RF + XGBoost n_jobs per bank; Ray logical reservation 3x12
+            - {name: OMP_NUM_THREADS, value: "12"}
+            - {name: OPENBLAS_NUM_THREADS, value: "12"}
+            - {name: MKL_NUM_THREADS, value: "12"}
+            - {name: IMAGE_REF, value: "REPLACE_GROUP/REPLACE_PROJECT:REPLACE_TAG"}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+          resources:
+            requests: {cpu: "12", memory: 24Gi, ephemeral-storage: 8Gi}
+            limits: {cpu: "12", memory: 24Gi, ephemeral-storage: 8Gi}
+          volumeMounts:
+            - {name: store, mountPath: /data/raw, subPath: raw, readOnly: true}
+            - {name: store, mountPath: /results, subPath: results}
+            - {name: scratch, mountPath: /scratch}
+            - {name: shm, mountPath: /dev/shm}
+      volumes:
+        - name: store
+          persistentVolumeClaim: {claimName: heterofl-data}
+        - name: scratch
+          emptyDir: {sizeLimit: 4Gi}
+        - name: shm
+          emptyDir: {medium: Memory, sizeLimit: 2Gi}

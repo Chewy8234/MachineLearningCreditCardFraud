@@ -1,0 +1,11 @@
+# Smoke test on SYNTHETIC, NON-PUBLISHABLE data (no ULB file needed).
+# Generate the file first:
+#   python -m heterofl.data.synthetic --out data/raw/synthetic_creditcard.csv
+#   python -m heterofl.experiments.runner --config configs/smoke_synthetic.yaml
+base_config: smoke.yaml
+profile: smoke_synthetic
+results_dir: results/smoke_synthetic
+data:
+  path: data/raw/synthetic_creditcard.csv
+  synthetic: true
+  subsample_fraction: null

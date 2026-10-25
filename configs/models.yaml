@@ -1,0 +1,32 @@
+# Model hyperparameters shared by every experimental condition.
+# Fixed a priori (not tuned); profiles may override any key under `models:`.
+# Class imbalance is NOT re-weighted for any model, so predicted probabilities
+# stay on the natural (unweighted) likelihood scale that the KD teachers average.
+# Operating points are handled by the validation-selected threshold instead.
+
+xgboost:
+  n_estimators: 300
+  max_depth: 6
+  learning_rate: 0.1
+  subsample: 0.8
+  colsample_bytree: 0.8
+  min_child_weight: 1.0
+  reg_lambda: 1.0
+  tree_method: hist
+  max_bin: 256
+
+random_forest:
+  n_estimators: 200
+  max_depth: null
+  min_samples_leaf: 1
+  max_features: sqrt
+  bootstrap: true
+
+mlp:
+  hidden_sizes: [64, 32]
+  dropout: 0.1
+  learning_rate: 0.001
+  weight_decay: 0.0
+  batch_size: 512
+  epochs: 10          # local-only / centralized / KD round-0 training
+  device: cpu         # "cpu" (default, deterministic), "cuda", or "auto"

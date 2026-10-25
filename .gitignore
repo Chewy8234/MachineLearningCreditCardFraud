@@ -2,3 +2,34 @@
 creditcard.csv
 __pycache__/
 .venv/
+
+# Generated data artifacts (rebuilt deterministically by the runner)
+data/raw/*
+data/processed/*
+data/partitions/*
+!data/**/.gitkeep
+
+# Experiment outputs
+results/*
+!results/.gitkeep
+
+# Tooling
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+*.fab
+
+# Secrets and cluster credentials (never commit)
+.env
+.env.*
+*.kubeconfig
+kubeconfig*
+.kube/
+
+# Model checkpoints outside results/ (results/ is ignored above)
+*.pt
+*.joblib
+
+# OS / editor noise
+.DS_Store

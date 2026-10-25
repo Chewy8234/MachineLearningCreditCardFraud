@@ -1,0 +1,18 @@
+# Homogeneous baseline: FedAvg over logistic regression.
+#   python -m heterofl.experiments.runner --config configs/fedavg_logreg.yaml
+# Identical to paper.yaml (data, splits, seed-specific partitions, preprocessing,
+# rounds, FedAvg local epochs, evaluation); the shared network is the MLP class with
+# no hidden layers, i.e. logistic regression, so FedAvg averages the coefficients
+# and intercept. Clients are unchanged; FedAvg ignores their model families.
+base_config: paper.yaml
+profile: fedavg_logreg
+results_dir: results/fedavg_logreg
+
+methods: [fedavg_logreg]
+
+scenarios:
+  mild_non_iid:
+    methods: [fedavg_logreg]
+
+ablations:
+  enabled: false

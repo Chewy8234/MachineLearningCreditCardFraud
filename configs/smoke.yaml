@@ -1,0 +1,59 @@
+# PROFILE A -- smoke test. DEVELOPMENT RESULTS ONLY, NOT FOR PUBLICATION.
+# Real ULB data, stratified 20% subsample, one scenario, one seed, 2 rounds,
+# smaller models. Exercises every experimental condition and the ablations.
+#   python -m heterofl.experiments.runner --config configs/smoke.yaml
+base_config: paper.yaml
+profile: smoke
+publishable: false
+results_dir: results/smoke
+
+data:
+  subsample_fraction: 0.2
+  subsample_seed: 0
+
+seeds: [42]
+
+scenarios:
+  iid: __remove__
+  severe_non_iid: __remove__
+  mild_non_iid: __remove__
+  moderate_non_iid:
+    type: dirichlet
+    alpha: 0.5
+
+partitioning:
+  min_fraud_per_client: 5
+  min_legit_per_client: 200
+  max_retries: 1000
+
+federation:
+  num_rounds: 2
+  client_num_cpus: 2
+  job_timeout: 1800
+
+fedavg:
+  local_epochs: 5               # 2 rounds x 5 = 10 epochs = local-only MLP budget
+
+kd:
+  mlp_epochs_per_round: 1
+
+models:
+  xgboost:
+    n_estimators: 60
+    max_depth: 4
+  random_forest:
+    n_estimators: 40
+  mlp:
+    hidden_sizes: [32, 16]
+    epochs: 10
+
+evaluation:
+  bootstrap:
+    n_resamples: 200
+
+ablations:
+  enabled: true
+  scenarios: [moderate_non_iid]
+  runs:
+    kd_lambda_0.1: __remove__
+    kd_lambda_1.0: __remove__

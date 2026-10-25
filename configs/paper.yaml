@@ -1,0 +1,115 @@
+# PROFILE B -- full research experiment (publication results).
+#   python -m heterofl.experiments.runner --config configs/paper.yaml
+profile: full
+publishable: true
+results_dir: results/full
+models_config: configs/models.yaml
+
+data:
+  path: data/raw/creditcard.csv
+  processed_dir: data/processed
+  partitions_dir: data/partitions
+  synthetic: false
+  subsample_fraction: null      # full ULB dataset
+  drop_duplicates: false        # duplicates are reported, not removed
+
+split:
+  seed: 42                      # fixed: identical test/validation/proxy across seeds
+  test_fraction: 0.20
+  validation_fraction: 0.15     # of the 80% development portion
+  proxy_fraction: 0.10          # of development-training (after validation)
+  proxy_sampling: stratified    # "random" -> configs/paper_random_proxy.yaml
+
+preprocessing:
+  log_amount: true              # scaler statistics are fitted on proxy features only
+
+seeds: [42, 123, 2026]          # vary partitioning + model initialisation/training
+
+scenarios:
+  iid:
+    type: iid
+  moderate_non_iid:
+    type: dirichlet
+    alpha: 0.5
+  severe_non_iid:
+    type: dirichlet
+    alpha: 0.1
+  # Ablation E: an additional, milder heterogeneity level
+  mild_non_iid:
+    type: dirichlet
+    alpha: 1.0
+    ablation: true
+    methods: [local, ensemble, fedavg, heterogeneous_kd]
+
+partitioning:
+  num_clients: 3
+  min_fraud_per_client: 10
+  min_legit_per_client: 1000
+  max_retries: 1000
+
+clients:
+  - {bank: A, model: xgboost}
+  - {bank: B, model: random_forest}
+  - {bank: C, model: mlp}
+
+methods: [local, centralized, ensemble, fedavg, heterogeneous_kd]
+
+federation:
+  num_rounds: 5                 # FedAvg rounds and KD distillation rounds
+  client_num_cpus: 4            # Ray resources per simulated bank (also n_jobs)
+  client_num_gpus: 0
+  round_timeout: 3600
+  job_timeout: 14400
+
+fedavg:
+  local_epochs: 2               # 5 rounds x 2 = 10 epochs = local-only MLP budget
+
+kd:
+  lambda_kd: 0.5
+  teacher: leave_one_out        # | full_committee  (ablation C)
+  teacher_weighting: equal      # | validation_ap   (ablation D)
+  prob_clip: 1.0e-6
+  tree_update: retrain          # XGBoost/RF retrained each round; | continue (XGBoost only)
+  xgb_trees_per_round: 50       # only for tree_update=continue
+  mlp_epochs_per_round: 2       # MLP fine-tuned from its current weights each round
+  proxy_batch_size: 512
+
+ensemble:
+  weighting: equal              # | validation_ap (ablation D)
+
+evaluation:
+  threshold_rule: max_f1        # chosen on validation, applied to test
+  fixed_fpr_targets: [0.001, 0.01]
+  model_selection: final_round  # fixed a priori | best_validation_ap
+  bootstrap:
+    n_resamples: 1000
+    confidence: 0.95
+    seed: 0
+
+ablations:
+  enabled: true
+  # A-D run on the three primary heterogeneity levels (E = the scenarios themselves)
+  scenarios: [iid, moderate_non_iid, severe_non_iid]
+  runs:
+    kd_lambda_0.0:                # A: distillation disabled
+      method: heterogeneous_kd
+      overrides: {kd: {lambda_kd: 0.0}}
+    kd_lambda_0.1:                # B
+      method: heterogeneous_kd
+      overrides: {kd: {lambda_kd: 0.1}}
+    kd_lambda_1.0:                # B
+      method: heterogeneous_kd
+      overrides: {kd: {lambda_kd: 1.0}}
+    kd_full_committee:            # C
+      method: heterogeneous_kd
+      overrides: {kd: {teacher: full_committee}}
+    kd_teacher_val_weighted:      # D (teacher aggregation)
+      method: heterogeneous_kd
+      overrides: {kd: {teacher_weighting: validation_ap}}
+    ensemble_val_weighted:        # D (prediction aggregation)
+      method: ensemble
+      overrides: {ensemble: {weighting: validation_ap}}
+
+report:
+  auto: true
+  bootstrap_seed_for_curves: 42  # which seed's models are drawn in PR/ROC figures

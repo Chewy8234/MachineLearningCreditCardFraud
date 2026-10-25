@@ -1,0 +1,28 @@
+# Homogeneous baselines, XGBoost family (H1 KD committee, E1 ensemble, federated XGBoost).
+#   python -m heterofl.experiments.runner --config configs/homog_xgboost.yaml
+# Identical to paper.yaml (data, splits, seed-specific partitions, preprocessing,
+# models.yaml hyperparameters, rounds, KD protocol, ensemble rule, evaluation) except
+# that every bank trains XGBoost. Partitions depend only on seed, scenario and bank
+# names, so they are byte-identical to the heterogeneous profile's.
+base_config: paper.yaml
+profile: homog_xgboost
+results_dir: results/homog_xgboost
+
+clients:
+  - {bank: A, model: xgboost}
+  - {bank: B, model: xgboost}
+  - {bank: C, model: xgboost}
+
+# local -> E1 (members), ensemble -> E1, heterogeneous_kd -> H1 (same KD protocol; the
+# method id names the protocol), fedxgb_bagging -> homogeneous tree FL
+methods: [local, ensemble, heterogeneous_kd, fedxgb_bagging]
+
+scenarios:
+  mild_non_iid:
+    methods: [local, ensemble, heterogeneous_kd, fedxgb_bagging]
+
+fedxgb:
+  trees_per_round: 20           # per bank per round: 5 rounds x 3 banks x 20 = 300 trees
+
+ablations:
+  enabled: false                # lambda = 0 retrains the identical boosters (= E1 members)

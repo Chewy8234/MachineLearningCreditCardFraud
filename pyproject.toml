@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "heterofl"
+version = "0.1.0"
+description = "Heterogeneous federated committees (XGBoost, Random Forest, MLP) for credit card fraud detection with Flower"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "Apache-2.0"
+# Ranges cover both tested environments: macOS / CPython 3.12 (upper bounds, see
+# requirements.txt and requirements-lock.txt) and Windows / CPython 3.11 (lower
+# bounds, see requirements-py311.txt).
+dependencies = [
+    "flwr[simulation]>=1.26.1,<=1.42.0",
+    "xgboost>=3.2.0,<=3.4.1",
+    "torch==2.14.1",
+    "scikit-learn==1.9.1",
+    "pandas>=3.0.1,<=3.1.0",
+    "numpy>=2.4.2,<=2.5.4",
+    "scipy>=1.17.1,<=1.18.1",
+    "matplotlib>=3.10.8,<=3.11.2",
+    "seaborn==0.13.2",
+    "pyyaml==6.0.3",
+    "joblib==1.6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/heterofl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]   # works even if the editable-install .pth file is skipped
+addopts = "-ra"
+markers = [
+    "slow: launches Flower/Ray simulations (deselect with -m 'not slow')",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:ray.*",
+]
+
+# ---------------------------------------------------------------------------
+# Flower App metadata: enables `flwr run .` for development/debugging.
+# The experiment runner (python -m heterofl.experiments.runner) does not use
+# this section; it launches the same ServerApp/ClientApp objects through the
+# Flower Simulation Runtime directly. See README "Debugging with flwr run".
+# ---------------------------------------------------------------------------
+[tool.flwr.app]
+publisher = "heterofl"
+
+[tool.flwr.app.components]
+serverapp = "heterofl.federation.server_app:app"
+clientapp = "heterofl.federation.client_app:app"
+
+[tool.flwr.app.config]
+job-path = ""
