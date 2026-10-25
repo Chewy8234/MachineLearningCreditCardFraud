@@ -36,7 +36,7 @@ and model randomness); "split" = an independent draw of test/validation/proxy se
    IID-sized banks collapses on tiny partitions (bank A severe 0.83 -> 0.55): hyperparameters do not transfer across data sizes.
 7. **Other.** KD slightly improves calibration of the RF/MLP members (ECE 0.0014 -> 0.0010 RF); a validation-fitted
    stacked logistic combiner is +0.005-0.007 AP over the plain mean (exploratory); max/rank combiners are worse. At a
-   FN:FP cost of 500:1 the committee costs ~3-7% less than the best single bank chosen on validation. Per-seed rankings
+   FN:FP cost of 500:1 the committee costs ~2-7% less than the best single bank chosen on validation. Per-seed rankings
    are unstable (mean Kendall tau 0.32 across seeds).
 
 ## Recommended wording changes for the paper
