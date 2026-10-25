@@ -1,0 +1,7 @@
+# Proxy-set size sensitivity (primary: proxy_fraction 0.10 -> 19,367 rows / 34 frauds).
+base_config: val_base.yaml
+profile: validation_proxy_003
+results_dir: results/val_proxy_003
+split:
+  proxy_fraction: 0.03
+methods: [local, ensemble, heterogeneous_kd]

@@ -43,8 +43,9 @@ TOP_LEVEL_KEYS = frozenset({
 SECTION_KEYS = {
     "data": {"path", "processed_dir", "partitions_dir", "synthetic", "subsample_fraction",
              "subsample_seed", "drop_duplicates"},
-    "split": {"seed", "test_fraction", "validation_fraction", "proxy_fraction", "proxy_sampling"},
-    "preprocessing": {"log_amount"},
+    "split": {"seed", "test_fraction", "validation_fraction", "proxy_fraction", "proxy_sampling",
+              "mode"},   # mode: absent = "random" (not a DEFAULT: keeps existing config hashes)
+    "preprocessing": {"log_amount", "mask_time"},   # mask_time: absent = false (not a DEFAULT)
     "partitioning": {"num_clients", "min_fraud_per_client", "min_legit_per_client", "max_retries"},
     "federation": {"num_rounds", "client_num_cpus", "client_num_gpus", "round_timeout",
                    "job_timeout"},
@@ -254,6 +255,8 @@ def validate_config(cfg: dict) -> None:
         if isinstance(frac, bool) or not isinstance(frac, (int, float)) or not 0.0 < frac < 1.0:
             raise ConfigError(f"split.{key} must be in (0, 1), got {frac!r}")
     _number(split.get("seed"), "split.seed", integer=True, low=0)
+    if split.get("mode", "random") not in ("random", "temporal"):
+        raise ConfigError("split.mode must be 'random' or 'temporal'")
     if split.get("proxy_sampling", "stratified") not in ("stratified", "random"):
         raise ConfigError("split.proxy_sampling must be 'stratified' or 'random'")
     _number(cfg["data"].get("subsample_fraction"), "data.subsample_fraction", low=0,

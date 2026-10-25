@@ -1,0 +1,10 @@
+# Bank->model assignment permutation XMR (banks A,B,C). The paper assigns XRM. Separates model-family
+# effects from data-size effects under Dirichlet quantity skew. FedAvg/centralized do not depend on assignment.
+base_config: val_base.yaml
+profile: validation_perm_XMR
+results_dir: results/val_perm_XMR
+methods: [local, ensemble, heterogeneous_kd]
+clients:
+  - {bank: A, model: xgboost}
+  - {bank: B, model: mlp}
+  - {bank: C, model: random_forest}

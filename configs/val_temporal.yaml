@@ -1,0 +1,7 @@
+# Temporal hold-out: train < validation < test in Time (test = last 20% of the 48h window).
+# Compares against the random split to bound split-induced optimism. Not stratified: test has ~75 frauds.
+base_config: val_base.yaml
+profile: validation_temporal
+results_dir: results/val_temporal
+split:
+  mode: temporal

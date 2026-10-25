@@ -1,0 +1,7 @@
+# KD/FedAvg round-count sweep (primary: 5 rounds; FedAvg local_epochs 2 -> budget matches local MLP at 5 rounds).
+base_config: val_base.yaml
+profile: validation_rounds_3
+results_dir: results/val_rounds_3
+federation:
+  num_rounds: 3
+methods: [local, ensemble, fedavg, heterogeneous_kd]

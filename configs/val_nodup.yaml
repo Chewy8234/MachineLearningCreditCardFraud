@@ -1,0 +1,6 @@
+# Exact duplicate rows removed before splitting (1,081 duplicates; 299 test rows have a train twin).
+base_config: val_base.yaml
+profile: validation_nodup
+results_dir: results/val_nodup
+data:
+  drop_duplicates: true

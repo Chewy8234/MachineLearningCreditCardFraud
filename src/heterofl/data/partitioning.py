@@ -66,16 +66,39 @@ def stratified_subsample(y: np.ndarray, fraction: float, seed: int) -> np.ndarra
     return np.sort(keep)
 
 
+def _temporal_tail(idx: np.ndarray, time: np.ndarray, fraction: float) -> tuple[np.ndarray, np.ndarray]:
+    """Split ``idx`` into (earlier, latest ``fraction``) by ``time`` (stable, no shuffling)."""
+    order = idx[np.argsort(time[idx], kind="stable")]
+    n_tail = int(round(len(order) * fraction))
+    return order[:len(order) - n_tail], order[len(order) - n_tail:]
+
+
 def split_dataset(y: np.ndarray, *, test_fraction: float, validation_fraction: float,
                   proxy_fraction: float, proxy_sampling: str, seed: int,
-                  candidate_idx: np.ndarray | None = None) -> SplitIndices:
-    """Create the four mutually disjoint index sets (see module docstring)."""
+                  candidate_idx: np.ndarray | None = None, mode: str = "random",
+                  time: np.ndarray | None = None) -> SplitIndices:
+    """Create the four mutually disjoint index sets (see module docstring).
+
+    ``mode="random"`` (the paper's protocol): stratified random test/validation.
+    ``mode="temporal"``: the latest ``test_fraction`` of rows by ``time`` is the test set and
+    the latest ``validation_fraction`` of the remaining development rows is the validation
+    set (train < validation < test in time). Not stratified, so class counts are reported,
+    not guaranteed. The proxy set is still drawn from the (earlier) development-train rows.
+    """
     idx = np.arange(len(y)) if candidate_idx is None else np.asarray(candidate_idx)
     yy = y[idx]
-    dev, test = train_test_split(idx, test_size=test_fraction, stratify=yy,
-                                 random_state=derive_seed(seed, "split", "test"))
-    dev_train, val = train_test_split(dev, test_size=validation_fraction, stratify=y[dev],
-                                      random_state=derive_seed(seed, "split", "validation"))
+    if mode == "temporal":
+        if time is None:
+            raise ValueError("temporal split requires the Time column")
+        dev, test = _temporal_tail(idx, time, test_fraction)
+        dev_train, val = _temporal_tail(dev, time, validation_fraction)
+    elif mode == "random":
+        dev, test = train_test_split(idx, test_size=test_fraction, stratify=yy,
+                                     random_state=derive_seed(seed, "split", "test"))
+        dev_train, val = train_test_split(dev, test_size=validation_fraction, stratify=y[dev],
+                                          random_state=derive_seed(seed, "split", "validation"))
+    else:
+        raise ValueError(f"Unknown split mode {mode!r}")
     if proxy_sampling == "stratified":
         strat = y[dev_train]
     elif proxy_sampling == "random":

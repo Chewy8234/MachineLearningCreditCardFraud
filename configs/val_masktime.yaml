@@ -1,0 +1,7 @@
+# `Time` masked to a constant for every model: ULB fraud is bursty in time (lag-1 autocorrelation of
+# binned fraud rate ~0.27) and the paper's models see raw Time under a random split.
+base_config: val_base.yaml
+profile: validation_masktime
+results_dir: results/val_masktime
+preprocessing:
+  mask_time: true

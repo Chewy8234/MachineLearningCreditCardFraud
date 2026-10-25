@@ -1,0 +1,17 @@
+# Validation campaign base: paper.yaml minus mild scenario and minus all ablations except the
+# lambda=0 control (same extra training, no distillation). Used with --set split.seed=N and
+# --set results_dir=... for repeated outer splits (new test/validation/proxy draw per split seed).
+base_config: paper.yaml
+profile: validation
+results_dir: results/val_base
+scenarios:
+  mild_non_iid: __remove__
+ablations:
+  enabled: true
+  scenarios: [iid, moderate_non_iid, severe_non_iid]
+  runs:
+    kd_lambda_0.1: __remove__
+    kd_lambda_1.0: __remove__
+    kd_full_committee: __remove__
+    kd_teacher_val_weighted: __remove__
+    ensemble_val_weighted: __remove__

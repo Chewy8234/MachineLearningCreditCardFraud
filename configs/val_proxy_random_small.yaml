@@ -1,0 +1,8 @@
+# Fraud-poor proxy: small, naturally sampled (unstratified) reference set (~1.7k rows, ~3 frauds).
+base_config: val_base.yaml
+profile: validation_proxy_random_small
+results_dir: results/val_proxy_random_small
+split:
+  proxy_fraction: 0.01
+  proxy_sampling: random
+methods: [local, ensemble, heterogeneous_kd]

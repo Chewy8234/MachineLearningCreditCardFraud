@@ -172,15 +172,18 @@ class ScenarioData:
 
 def _bundle_spec(cfg: dict, fingerprint: dict) -> dict:
     data = cfg["data"]
+    split = {k: cfg["split"][k] for k in ("seed", "test_fraction",
+                                          "validation_fraction", "proxy_fraction",
+                                          "proxy_sampling")}
+    if cfg["split"].get("mode", "random") != "random":
+        split["mode"] = cfg["split"]["mode"]   # only when non-default: old bundle tags unchanged
     return {
         "bundle_version": BUNDLE_VERSION,
         "dataset_sha256": fingerprint["sha256"],
         "subsample_fraction": data.get("subsample_fraction"),
         "subsample_seed": data.get("subsample_seed", 0),
         "drop_duplicates": bool(data.get("drop_duplicates", False)),
-        "split": {k: cfg["split"][k] for k in ("seed", "test_fraction",
-                                              "validation_fraction", "proxy_fraction",
-                                              "proxy_sampling")},
+        "split": split,
         "preprocessing": cfg.get("preprocessing", {"log_amount": True}),
     }
 
@@ -217,6 +220,11 @@ def prepare_bundle(cfg: dict) -> DataBundle:
         row_ids = row_ids[keep]
     X_raw, y_all = features_and_target(df)
     X_raw, y = X_raw[row_ids], y_all[row_ids]
+    time_col = X_raw[:, FEATURE_COLUMNS.index("Time")].copy()   # split ordering uses the real Time
+    if spec["preprocessing"].get("mask_time", False):
+        # Validation ablation: Time becomes a constant (std 0 -> scale 1), i.e. no model can use it.
+        X_raw = X_raw.copy()
+        X_raw[:, FEATURE_COLUMNS.index("Time")] = 0.0
 
     candidate = np.arange(len(y))
     if spec["subsample_fraction"] not in (None, 1, 1.0):
@@ -230,7 +238,8 @@ def prepare_bundle(cfg: dict) -> DataBundle:
                            validation_fraction=s["validation_fraction"],
                            proxy_fraction=s["proxy_fraction"],
                            proxy_sampling=s.get("proxy_sampling", "stratified"),
-                           seed=int(s["seed"]), candidate_idx=candidate)
+                           seed=int(s["seed"]), candidate_idx=candidate,
+                           mode=s.get("mode", "random"), time=time_col)
 
     pre = FeaturePreprocessor(log_amount=spec["preprocessing"].get("log_amount", True))
     pre.fit(X_raw[splits.proxy], source="proxy split features (labels unused)")
